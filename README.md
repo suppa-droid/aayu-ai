@@ -410,7 +410,7 @@ source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
-pip install psutil bcrypt faiss-cpu sentence-transformers
+pip install psutil bcrypt faiss-cpu sentence-transformers torch transformers
 
 # Start FastAPI server (FAISS RAG index is built automatically on startup)
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
@@ -447,6 +447,42 @@ npm start
 ```
 - Microservice URL: `http://localhost:4000`
 - Features: Outgoing Twilio WhatsApp notifications + interactive local simulation console.
+
+---
+
+## ☁️ Cloud Deployment Guide (Vercel & Render)
+
+If a new user wants to deploy this entire architecture to the cloud exactly as we have, follow these configurations:
+
+### 1. Backend API (Render)
+- **Service Type**: Web Service
+- **Root Directory**: `backend`
+- **Environment**: `Python 3`
+- **Build Command**: 
+  ```bash
+  pip install -r requirements.txt && pip install python-multipart
+  ```
+- **Start Command**: 
+  ```bash
+  uvicorn app.main:app --host 0.0.0.0 --port $PORT
+  ```
+- **Required Environment Variables**:
+  - `SECRET_KEY`: Any secure cryptographic string (e.g. `super-secret-key`)
+  - `GROQ_API_KEY`: Your key from Groq Console
+  - `GOOGLE_API_KEY`: Your key from Google Gemini AI
+
+### 2. Frontend Dashboards (Vercel)
+Import the root repository into Vercel twice (once for each app):
+
+- **Field Worker Dashboard**:
+  - **Framework Preset**: `Next.js`
+  - **Root Directory**: `frontend-field-dashboard`
+  - **Environment Variables**: Add `NEXT_PUBLIC_API_URL` pointing to your deployed Render URL.
+
+- **Admin Governance Portal**:
+  - **Framework Preset**: `Next.js`
+  - **Root Directory**: `frontend-admin-panel`
+  - **Environment Variables**: Add `NEXT_PUBLIC_API_URL` pointing to your deployed Render URL.
 
 ---
 
