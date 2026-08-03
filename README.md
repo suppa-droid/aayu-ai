@@ -13,6 +13,19 @@
 
 ---
 
+## 🌍 Live Demo (Vercel + Render)
+
+Our production deployment is currently live! You can test the end-to-end functionality right now:
+
+- **📱 Field Worker PWA Dashboard**: [https://aayu-ai.vercel.app](https://aayu-ai.vercel.app)
+- **🛡️ Admin Governance Portal**: [https://aayu-ai-d742.vercel.app](https://aayu-ai-d742.vercel.app)
+- **⚡ Backend API (Render)**: [https://aayu-ai-backendsamo.onrender.com](https://aayu-ai-backendsamo.onrender.com)
+
+> [!NOTE]
+> **Local vs. Cloud Functionality**: Due to the strict 512MB RAM limitation on the free Render tier, the heavy `sentence-transformers` PyTorch model used for the FAISS RAG Search ("Ask Aayu") is automatically bypassed in the cloud deployment to prevent memory crashes. **However, when running locally on your PC (as detailed below), all AI models and RAG pipelines are 100% active and fully functional.**
+
+---
+
 ## 📖 Table of Contents
 1. [Executive Summary & Problem Statement](#-executive-summary--problem-statement)
 2. [Key Capabilities & Innovation](#-key-capabilities--innovation)
