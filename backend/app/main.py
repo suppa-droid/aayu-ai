@@ -23,16 +23,18 @@ init_db()
 
 @asynccontextmanager
 async def lifespan(app):
-    # ── Startup: Build FAISS RAG index from scheme YAML files (reloaded) ──
-    logger.info("Starting Aayu AI RAG ingestion pipeline...")
+    # ── Startup: Build FAISS RAG index (only if sentence-transformers is available) ──
     try:
+        from sentence_transformers import SentenceTransformer  # noqa
         from app.rag.ingestion import seed_scheme_documents
+        logger.info("Starting Aayu AI RAG ingestion pipeline...")
         seed_scheme_documents()
         logger.info("RAG ingestion complete.")
-    except Exception as e:
-        logger.error(f"RAG ingestion failed: {e}")
+    except (ImportError, Exception) as e:
+        logger.warning(f"RAG ingestion skipped (sentence-transformers not available): {e}")
     yield
     # ── Shutdown ──
+
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
