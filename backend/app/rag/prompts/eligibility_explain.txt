@@ -1,0 +1,9 @@
+Explain the eligibility of the senior citizen for scheme {scheme_name} based on the retrieved official guidelines:
+
+Citizen Profile:
+{citizen_profile}
+
+Retrieved Clauses:
+{retrieved_clauses}
+
+Provide a clear, respectful summary in simple language suitable for low digital literacy citizens and field workers.

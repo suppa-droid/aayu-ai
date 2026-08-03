@@ -1,0 +1,13 @@
+{
+  "nodes": [
+    { "id": "IGNOAPS", "name": "IGNOAPS Pension", "min_age": 60 },
+    { "id": "AVYAY", "name": "Atal Vayo Abhyuday Yojana", "min_age": 60 },
+    { "id": "RVY", "name": "Rashtriya Vayoshri Yojana", "min_age": 60 },
+    { "id": "AB_PMJAY_70", "name": "Ayushman Bharat 70+", "min_age": 70 },
+    { "id": "SACRED", "name": "SACRED Employment", "min_age": 60 }
+  ],
+  "edges": [
+    { "source": "IGNOAPS", "target": "RVY", "relationship": "PREREQUISITE_FOR" },
+    { "source": "IGNOAPS", "target": "AB_PMJAY_70", "relationship": "PROGRESSION_TO" }
+  ]
+}

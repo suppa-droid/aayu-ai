@@ -1,0 +1,17 @@
+scheme_id: "AB_PMJAY_70"
+name: "Ayushman Bharat PM-JAY Senior Citizen Coverage"
+sponsoring_agency: "National Health Authority (NHA)"
+category: "Universal Health Insurance"
+min_age: 70
+requires_bpl: false
+required_documents:
+  - "Aadhaar Card with e-KYC"
+rules:
+  - field: "age"
+    operator: ">="
+    value: 70
+    description: "Universal coverage for all Indian citizens aged 70 years and above, regardless of income."
+prerequisites:
+  - "IGNOAPS"
+benefit_details:
+  health_cover: "Rs. 5,00,000 per family per year dedicated health insurance top-up for seniors."

@@ -1,0 +1,12 @@
+Analyze why the senior citizen is ineligible for {scheme_name} and generate actionable counterfactual statements:
+
+Citizen Profile:
+{citizen_profile}
+
+Unmatched Rules:
+{unmatched_rules}
+
+Format the response as:
+1. Missing Criteria
+2. What changes would unlock eligibility (Counterfactual Scenarios)
+3. Actionable next steps for the field worker

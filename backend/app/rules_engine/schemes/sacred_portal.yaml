@@ -1,0 +1,16 @@
+scheme_id: "SACRED"
+name: "Senior Able Citizens for Re-Employment in Dignity (SACRED)"
+sponsoring_agency: "Ministry of Social Justice and Empowerment"
+category: "Employment & Dignified Livelihood"
+min_age: 60
+requires_bpl: false
+required_documents:
+  - "Aadhaar Card"
+  - "Skill / Experience Certificate"
+rules:
+  - field: "age"
+    operator: ">="
+    value: 60
+    description: "Applicant must be aged 60 years or above seeking part-time or advisory work."
+benefit_details:
+  employment_match: "Direct matching with NGOs, SHGs, and private firms seeking experienced senior talent."

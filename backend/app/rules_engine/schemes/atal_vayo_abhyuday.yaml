@@ -1,0 +1,16 @@
+scheme_id: "AVYAY"
+name: "Atal Vayo Abhyuday Yojana"
+sponsoring_agency: "Ministry of Social Justice and Empowerment"
+category: "Elderly Care & Shelter Support"
+min_age: 60
+requires_bpl: false
+required_documents:
+  - "Aadhaar Card"
+  - "Age Proof"
+rules:
+  - field: "age"
+    operator: ">="
+    value: 60
+    description: "Senior citizen must be aged 60 years or above."
+benefit_details:
+  shelter_support: "Free shelter, healthcare, and nutrition in Senior Citizen Homes (Senior Care Homes)."

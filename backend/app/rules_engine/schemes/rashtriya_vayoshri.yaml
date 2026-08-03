@@ -1,0 +1,23 @@
+scheme_id: "RVY"
+name: "Rashtriya Vayoshri Yojana"
+sponsoring_agency: "ALIMCO & Ministry of Social Justice and Empowerment"
+category: "Assistive Devices & Mobility Support"
+min_age: 60
+requires_bpl: true
+required_documents:
+  - "Aadhaar Card"
+  - "BPL Certificate"
+  - "Disability / Age-related Infirmity Certificate"
+rules:
+  - field: "age"
+    operator: ">="
+    value: 60
+    description: "Applicant must be aged 60 years or above."
+  - field: "is_bpl"
+    operator: "=="
+    value: true
+    description: "Belong to BPL category or certified monthly income <= Rs. 3,000."
+prerequisites:
+  - "IGNOAPS"
+benefit_details:
+  assisted_devices: "Free spectacles, hearing aids, wheelchairs, walking sticks, and knee braces."

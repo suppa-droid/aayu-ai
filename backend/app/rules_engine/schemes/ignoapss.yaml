@@ -1,0 +1,28 @@
+scheme_id: "IGNOAPS"
+name: "Indira Gandhi National Old Age Pension Scheme"
+sponsoring_agency: "Ministry of Rural Development, Govt. of India"
+category: "Social Security & Pension"
+min_age: 60
+max_income: 2500
+requires_bpl: true
+required_documents:
+  - "Aadhaar Card"
+  - "BPL Ration Card"
+  - "Age Proof Certificate"
+  - "Bank Passbook"
+rules:
+  - field: "age"
+    operator: ">="
+    value: 60
+    description: "Applicant must be 60 years or older."
+  - field: "is_bpl"
+    operator: "=="
+    value: true
+    description: "Applicant must belong to a Below Poverty Line (BPL) household."
+  - field: "monthly_income"
+    operator: "<="
+    value: 2500
+    description: "Household monthly income must not exceed Rs. 2,500."
+benefit_details:
+  pension_60_79: 500  # Rs. 500/month (Central + State contribution)
+  pension_80_plus: 800 # Rs. 800/month
