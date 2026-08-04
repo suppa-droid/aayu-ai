@@ -467,6 +467,7 @@ If a new user wants to deploy this entire architecture to the cloud exactly as w
   uvicorn app.main:app --host 0.0.0.0 --port $PORT
   ```
 - **Required Environment Variables**:
+  - `DATABASE_URL`: Your permanent PostgreSQL connection string (e.g. from [Neon.tech](https://neon.tech))
   - `SECRET_KEY`: Any secure cryptographic string (e.g. `super-secret-key`)
   - `GROQ_API_KEY`: Your key from Groq Console
   - `GOOGLE_API_KEY`: Your key from Google Gemini AI
