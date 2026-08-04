@@ -8,21 +8,37 @@
 [![Groq LPU](https://img.shields.io/badge/Groq-Llama--3.3--70B-F55036.svg?style=flat&logo=fastapi&logoColor=white)](https://groq.com)
 [![Gemini API](https://img.shields.io/badge/Gemini-2.5--Flash-4285F4.svg?style=flat&logo=google&logoColor=white)](https://ai.google.dev/)
 [![FAISS](https://img.shields.io/badge/FAISS-Semantic%20Vector%20RAG-blue.svg?style=flat&logo=python&logoColor=white)](https://github.com/facebookresearch/faiss)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Neon%20Cloud-336791.svg?style=flat&logo=postgresql&logoColor=white)](https://neon.tech)
 [![Twilio](https://img.shields.io/badge/Twilio-WhatsApp%20Gateway-F22F46.svg?style=flat&logo=twilio&logoColor=white)](https://twilio.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
 
-## 🌍 Live Demo (Vercel + Render)
+## 🌍 Live Demo (Vercel + Render + Neon PostgreSQL)
 
 Our production deployment is currently live! You can test the end-to-end functionality right now:
 
 - **📱 Field Worker PWA Dashboard**: [https://aayuworker.vercel.app](https://aayuworker.vercel.app)
 - **🛡️ Admin Governance Portal**: [https://aayuadmin.vercel.app](https://aayuadmin.vercel.app)
 - **⚡ Backend API (Render)**: [https://aayu-ai-backendsamo.onrender.com](https://aayu-ai-backendsamo.onrender.com)
+- **📖 Interactive API Docs (Swagger)**: [https://aayu-ai-backendsamo.onrender.com/docs](https://aayu-ai-backendsamo.onrender.com/docs)
+
+### 🔑 Demo Credentials
+
+| Role | Username | Password | Portal |
+|:---|:---|:---|:---|
+| System Admin | `admin` | `password123` | [aayuadmin.vercel.app](https://aayuadmin.vercel.app) |
+| District Admin | `district_admin` | `password123` | [aayuadmin.vercel.app](https://aayuadmin.vercel.app) |
+| Field Worker | `field_worker` | `password123` | [aayuworker.vercel.app](https://aayuworker.vercel.app) |
 
 > [!NOTE]
-> **Local vs. Cloud Functionality**: Due to the strict 512MB RAM limitation on the free Render tier, the heavy `sentence-transformers` PyTorch model used for the FAISS RAG Search ("Ask Aayu") is automatically bypassed in the cloud deployment to prevent memory crashes. **However, when running locally on your PC (as detailed below), all AI models and RAG pipelines are 100% active and fully functional.**
+> **Local vs. Cloud Functionality**: Due to the 512MB RAM limit on Render's free tier, the heavy `sentence-transformers` PyTorch model (FAISS RAG) is bypassed in the cloud to prevent OOM crashes. When running locally, all AI models and RAG pipelines are 100% active.
+
+> [!NOTE]
+> **Gemini Vision OCR**: Real AI OCR is active on the cloud backend. On the free Gemini API tier, rate limits apply (~15 req/min). If quota is hit, the system gracefully degrades to simulation mode and resumes automatically on the next request.
+
+> [!NOTE]
+> **Render Cold Start**: The backend sleeps after 15 minutes of inactivity. The first request after sleep may take ~60 seconds. This is a Render free-tier limitation only.
 
 ---
 
@@ -40,8 +56,10 @@ Our production deployment is currently live! You can test the end-to-end functio
 11. [Project Directory Layout](#-project-directory-layout)
 12. [API Specification & Endpoints](#-api-specification--endpoints)
 13. [Local Development & Setup Guide](#-local-development--setup-guide)
-14. [Docker Deployment](#-docker-deployment)
-15. [Future Roadmap](#-future-roadmap)
+14. [Cloud Deployment Guide (Vercel + Render + Neon)](#-cloud-deployment-guide-vercel--render--neon)
+15. [Docker Deployment](#-docker-deployment)
+16. [Future Roadmap](#-future-roadmap)
+17. [Production Patches & System Updates](#-production-patches--system-updates)
 
 ---
 
@@ -61,19 +79,20 @@ Over **140 million senior citizens** live in India, a demographic expected to do
 ## 🌟 Key Capabilities & Innovation
 
 * 🤖 **Multi-Agent Orchestration (LangGraph)**: 8 specialized autonomous agents collaborating on state graphs with Human-In-The-Loop checkpoints.
-* 🧠 **FAISS Semantic RAG Engine**: Full Retrieval-Augmented Generation powered by Facebook's `faiss-cpu` and `sentence-transformers (all-MiniLM-L6-v2)`. Automatically indexes all welfare scheme YAML definitions at startup and performs semantic vector search at query time — enabling any type of natural-language question to be answered from the knowledge base.
-* 💬 **"Ask Aayu" Floating Chat Assistant**: A beautiful, real-time floating chatbot widget embedded in the Field Worker Kiosk. Field workers can ask any question about scheme eligibility, benefits, or required documents and receive AI-generated answers grounded exclusively in official policy definitions.
-* 🔊 **Audio Assist (Text-to-Speech)**: Integrated native Web Speech API in the "Ask Aayu" widget to read AI responses aloud for elderly accessibility, with zero external dependencies.
+* 🧠 **FAISS Semantic RAG Engine**: Full Retrieval-Augmented Generation powered by Facebook's `faiss-cpu` and `sentence-transformers (all-MiniLM-L6-v2)`. Automatically indexes all welfare scheme YAML definitions at startup and performs semantic vector search at query time.
+* 💬 **"Ask Aayu" Floating Chat Assistant**: A real-time floating chatbot widget embedded in the Field Worker Kiosk. Field workers can ask any question about scheme eligibility, benefits, or required documents and receive AI-generated answers grounded exclusively in official policy definitions.
+* 🔊 **Audio Assist (Text-to-Speech)**: Integrated native Web Speech API to read AI responses aloud for elderly accessibility, with zero external dependencies.
 * 📄 **Export PDF Receipt**: Generates a styled, print-ready PDF summary of a citizen's eligibility results and actionable counterfactuals directly from the dashboard.
-* ⚡ **Offline-First PWA with Native IndexedDB**: Complete offline kiosk support enabling field workers to onboard beneficiaries in remote zero-connectivity villages. Automatically queues drafts, pre-caches scheme criteria, and syncs seamlessly when connection is restored.
-* 📱 **Twilio WhatsApp Notification Microservice**: Proactive lifecycle reminders, Jeevan Pramaan submission alerts, and application status updates dispatched directly to family proxies. Includes an automated simulation engine for zero-cost local testing.
-* 📜 **Dual-Layer Deterministic Rules + Semantic RAG**: AST-based YAML expression evaluation for zero-hallucination legal accuracy combined with FAISS vector semantic search over scheme policy definitions.
-* 🔍 **Counterfactual Explainability Engine**: Plain-language explanations detailing not just *why* an applicant was rejected, but *the exact actionable steps* required to qualify (e.g., *"If you update your income certificate to below ₹2,00,000, you immediately unlock ₹1,000/mo pension"*).
-* 🗺️ **Cross-Scheme Dependency Roadmap**: Automatically sequences benefits chronologically (e.g., Step 1: Aadhaar DoB correction → Step 2: IGNOAPS Pension → Step 3: AB-PMJAY Universal Healthcare → Step 4: RVY Assistive Device).
-* 👁️ **Gemini Vision Optical Verification & Fraud Sentinel**: OCR document parsing using `gemini-2.5-flash` with automated name-matching, blur detection, and tamper flagging.
-* 🔐 **Alphanumeric CAPTCHA Security**: Both the Field Worker and Admin portals feature randomized 6-character alphanumeric CAPTCHA challenges on their login pages to prevent automated bot access.
+* ⚡ **Offline-First PWA with Native IndexedDB**: Complete offline kiosk support for remote zero-connectivity villages. Automatically queues drafts, pre-caches scheme criteria, and syncs seamlessly when connection is restored.
+* 📱 **Twilio WhatsApp Notification Microservice**: Proactive lifecycle reminders, Jeevan Pramaan submission alerts, and application status updates dispatched to family proxies. Includes a simulation engine for zero-cost local testing.
+* 📜 **Dual-Layer Deterministic Rules + Semantic RAG**: AST-based YAML expression evaluation for zero-hallucination legal accuracy combined with FAISS vector semantic search.
+* 🔍 **Counterfactual Explainability Engine**: Plain-language explanations detailing not just *why* an applicant was rejected, but *the exact actionable steps* required to qualify.
+* 🗺️ **Cross-Scheme Dependency Roadmap**: Automatically sequences benefits chronologically (Aadhaar correction → IGNOAPS Pension → AB-PMJAY Healthcare → RVY Assistive Device).
+* 👁️ **Gemini Vision Optical Verification & Fraud Sentinel**: OCR document parsing using `gemini-2.5-flash` with automated name-matching, blur detection, and tamper flagging. Gracefully degrades under API quota limits.
+* 🔐 **Alphanumeric CAPTCHA Security**: Both portals feature randomized 6-character alphanumeric CAPTCHA challenges on their login pages to prevent automated bot access.
 * 👥 **User & Role Management**: Administrative interface for managing Field Workers, District Admins, and System Admins with full editing capabilities.
-* 📊 **100% Real-Time AI Pipeline Telemetry**: Live hardware metrics (CPU%, RAM RSS, Uptime) and roundtrip database latency monitoring (`SELECT 1` ping < 1ms).
+* 📊 **Real-Time AI Pipeline Telemetry**: Live hardware metrics (CPU%, RAM RSS, Uptime) and roundtrip database latency monitoring.
+* 🗄️ **Permanent Cloud PostgreSQL Database**: All citizen registrations, applications, and user data stored permanently in Neon PostgreSQL — persists across all server restarts and redeployments.
 
 ---
 
@@ -81,38 +100,32 @@ Over **140 million senior citizens** live in India, a demographic expected to do
 
 ```mermaid
 graph TD
-    subgraph "Frontend Layer"
-        FW["📱 Field Worker PWA Kiosk (Port 3000)\nNext.js 14 • Service Worker • Native IndexedDB\nAsk Aayu AI Chatbot (FAISS RAG)"]
-        ADM["🛡️ Admin Governance Portal (Port 3001)\nNext.js 14 • Escalations • Telemetry • Users"]
+    subgraph "Frontend Layer (Vercel)"
+        FW["📱 Field Worker PWA\naayuworker.vercel.app\nNext.js 14 + IndexedDB + Ask Aayu"]
+        ADM["🛡️ Admin Portal\naayuadmin.vercel.app\nNext.js 14 + Escalations + Telemetry"]
     end
-
-    subgraph "Notification & Messaging Microservice"
-        WA["💬 WhatsApp Service (Port 4000)\nNode.js • Express • Twilio SDK • Simulation Gateway"]
+    subgraph "Notification Microservice"
+        WA["💬 WhatsApp Service\nNode.js + Express + Twilio SDK"]
     end
-
-    subgraph "API Gateway & Security"
-        GW["⚡ FastAPI Backend (Port 8000)\nJWT Bearer Auth • Native Bcrypt • CORS Middleware\nAlphanumeric CAPTCHA Login Protection"]
+    subgraph "API Gateway (Render)"
+        GW["⚡ FastAPI Backend\nJWT + Bcrypt + CORS + CAPTCHA"]
     end
-
     subgraph "LangGraph Multi-Agent AI Core"
-        ORCH["🧠 Orchestrator State Machine"]
+        ORCH["🧠 Orchestrator"]
         PROF["👤 Profiling Agent"]
-        RULE["📜 Rule Verification Agent (AST Engine)"]
-        EXP["💡 Explainability Agent (Counterfactuals)"]
+        RULE["📜 Rule Verification AST"]
+        EXP["💡 Explainability Agent"]
         REC["🎁 Recommendation Agent"]
-        PLAN["🗺️ Planning & Roadmap Agent"]
-        DOC["👁️ Document Verification Agent (Gemini Vision)"]
-        REM["⏰ Lifecycle Reminder Agent"]
+        PLAN["🗺️ Planning Agent"]
+        DOC["👁️ Document Verification Gemini"]
+        REM["⏰ Reminder Agent"]
     end
-
-    subgraph "Storage & RAG Knowledge Base"
-        SQL["🗄️ SQLite / PostgreSQL (Relational DB)"]
-        FAISS["🔍 FAISS Vector Store\nall-MiniLM-L6-v2 Embeddings\n384-dim Semantic Search"]
-        YAML["📑 YAML Scheme Policy Matrix\n(IGNOAPS, AB-PMJAY, RVY, AVYAY, SACRED)"]
+    subgraph "Storage and Knowledge Base"
+        PG["🗄️ Neon PostgreSQL\nPermanent Cloud DB"]
+        FAISS["🔍 FAISS Vector Store\nall-MiniLM-L6-v2 384-dim"]
+        YAML["📑 YAML Scheme Policy Matrix\nIGNOAPS AB-PMJAY RVY AVYAY SACRED"]
     end
-
-    FW -->|REST API + JWT / Offline Queue| GW
-    FW -->|RAG Chat Questions| GW
+    FW -->|REST API + JWT| GW
     ADM -->|REST API + JWT| GW
     GW -->|HTTP Webhooks| WA
     GW --> ORCH
@@ -126,7 +139,7 @@ graph TD
     RULE --> YAML
     EXP --> FAISS
     FAISS --> YAML
-    GW --> SQL
+    GW --> PG
 ```
 
 ---
@@ -138,71 +151,53 @@ The core decision engine runs as a compiled **LangGraph StateGraph** consisting 
 ```mermaid
 stateDiagram-v2
     [*] --> ProfilingAgent: Ingest Citizen Payload
-    ProfilingAgent --> RuleVerificationAgent: Normalized Schema & Criteria
-    
-    state RuleVerificationAgent {
-        [*] --> AST_YAML_Evaluation: Match Deterministic Constraints
-        AST_YAML_Evaluation --> InMemory_Context_RAG: Dynamic Context Injection
-        InMemory_Context_RAG --> [*]
-    }
-    
+    ProfilingAgent --> RuleVerificationAgent: Normalized Schema
     RuleVerificationAgent --> ExplainabilityAgent: Scheme Status Matrix
-    ExplainabilityAgent --> RecommendationAgent: Counterfactual Gap Explanations
-    RecommendationAgent --> PlanningRoadmapAgent: Top Eligible & High-Impact Schemes
-    PlanningRoadmapAgent --> ReminderAgent: Milestone Triggers & Action Plan
-    ReminderAgent --> DocumentVerificationAgent: Check Pending Verifications
-    
-    state DocumentVerificationAgent {
-        [*] --> OCR_GeminiVision: Scan Aadhaar/Ration Card
-        OCR_GeminiVision --> FraudCheck: Compute Tamper Score
-        FraudCheck --> Level2Escalation: Score > Threshold ?
-        Level2Escalation --> [*]
-    }
-    
-    DocumentVerificationAgent --> [*]: Return Complete Beneficiary Roadmap
+    ExplainabilityAgent --> RecommendationAgent: Counterfactual Gaps
+    RecommendationAgent --> PlanningRoadmapAgent: Top Eligible Schemes
+    PlanningRoadmapAgent --> ReminderAgent: Milestone Triggers
+    ReminderAgent --> DocumentVerificationAgent: Check Pending Docs
+    DocumentVerificationAgent --> [*]: Complete Beneficiary Roadmap
 ```
 
-| Agent | Responsibility | Implementation File |
+| Agent | Responsibility | File |
 | :--- | :--- | :--- |
-| **`ProfilingAgent`** | Normalizes raw field worker inputs, standardizes age/income, and extracts verification tags. | `backend/app/agents/profiling_agent.py` |
-| **`RuleVerificationAgent`** | Evaluates deterministic YAML rules via Python AST and queries the FAISS knowledge base for ambiguous clauses. | `backend/app/agents/rule_verification_agent.py` |
-| **`ExplainabilityAgent`** | Generates human-readable counterfactuals explaining exact requirements to unlock benefits. | `backend/app/agents/explainability_agent.py` |
-| **`RecommendationAgent`** | Ranks qualifying welfare programs based on financial impact, urgency, and category. | `backend/app/agents/recommendation_agent.py` |
-| **`PlanningAgent`** | Synthesizes a chronological, dependency-aware welfare adoption roadmap. | `backend/app/agents/planning_agent.py` |
-| **`DocumentVerificationAgent`** | Uses Gemini Vision (`gemini-2.5-flash`) for OCR extraction, blur analysis, and tamper detection. | `backend/app/agents/document_verification_agent.py` |
-| **`ReminderAgent`** | Calculates proactive triggers (e.g. Life Certificate due date, age milestone 70). | `backend/app/agents/reminder_agent.py` |
-| **`Orchestrator`** | LangGraph StateGraph engine compiling and coordinating execution across all nodes. | `backend/app/agents/orchestrator.py` |
+| **`ProfilingAgent`** | Normalizes raw field worker inputs, standardizes age/income, extracts verification tags | `agents/profiling_agent.py` |
+| **`RuleVerificationAgent`** | Evaluates deterministic YAML rules via Python AST + FAISS knowledge base | `agents/rule_verification_agent.py` |
+| **`ExplainabilityAgent`** | Generates human-readable counterfactuals explaining what steps unlock each benefit | `agents/explainability_agent.py` |
+| **`RecommendationAgent`** | Ranks qualifying welfare programs by financial impact, urgency, and category | `agents/recommendation_agent.py` |
+| **`PlanningAgent`** | Synthesizes a chronological, dependency-aware welfare adoption roadmap | `agents/planning_agent.py` |
+| **`DocumentVerificationAgent`** | Uses Gemini Vision `gemini-2.5-flash` for OCR, blur analysis, and tamper detection | `agents/document_verification_agent.py` |
+| **`ReminderAgent`** | Calculates proactive triggers (Life Certificate due date, age milestone 70) | `agents/reminder_agent.py` |
+| **`Orchestrator`** | LangGraph StateGraph engine compiling and coordinating all agent nodes | `agents/orchestrator.py` |
 
 ---
 
 ## ⚡ Offline-First PWA & IndexedDB Architecture
 
-The **Field Worker Dashboard** is engineered to operate seamlessly in remote Indian villages with zero cellular reception. Here is how it works:
+The Field Worker Dashboard operates seamlessly in remote Indian villages with zero cellular reception.
 
 ### 1. Installable App (No App Store Needed)
-Because we configured a `manifest.json` and a Service Worker (`sw.js`), the web app can be "Installed" directly to the field worker's phone or tablet home screen. It behaves exactly like a native Android/iOS app without needing to go through the Google Play Store or Apple App Store.
+A configured `manifest.json` and Service Worker (`sw.js`) allow the app to be installed directly to any phone or tablet home screen — behaving exactly like a native Android/iOS app.
 
 ### 2. 100% Offline Access
-When the worker is in a village with no cellular data:
-* **UI Caching**: The Service Worker implements Stale-While-Revalidate caching for application shells, styles, and routes. The app loads instantly even with airplane mode on.
-* **Offline Saving**: When they fill out the registration form for a senior citizen and hit submit, the app detects that they are offline. Instead of trying to send it to the server (which would fail), the data is safely serialized and saved to the device's local **IndexedDB** using our custom `OfflineStorageManager` (`lib/offline-db.ts`).
-* **Offline Scheme Cache**: Pre-caches welfare scheme rules and benefits so Anganwadi workers can consult criteria in the field without connectivity.
-* **Sync Hub & Auto-Sync Engine**: The app has a dedicated "Offline Sync Hub" page. When the worker returns to a town with internet access, they can open this page to push drafts, or rely on the Auto-Sync Engine (`components/PWARegistration.tsx`) which listens for network reconnect events and automatically pushes saved drafts to the backend server in a batch without user intervention.
-
-This ensures that critical welfare work is never blocked by poor infrastructure!
+* **UI Caching**: Service Worker implements Stale-While-Revalidate caching. The app loads instantly even with airplane mode on.
+* **Offline Saving**: Citizen registration data is safely saved to the device's local IndexedDB via `OfflineStorageManager` (`lib/offline-db.ts`) when offline.
+* **Offline Scheme Cache**: Pre-caches welfare scheme rules so Anganwadi workers can consult criteria in the field without connectivity.
+* **Auto-Sync Engine**: `PWARegistration.tsx` listens for network reconnect events and automatically pushes saved drafts to the backend in batch — no user intervention needed.
 
 ---
 
 ## 📱 WhatsApp & Proactive Proxy Notification Microservice
 
-Located in `whatsapp-service/`, this Node.js microservice acts as an omnichannel communications gateway for senior citizens' family proxies:
+Located in `whatsapp-service/`, this Node.js microservice is the omnichannel communications gateway for senior citizens' family proxies:
 
-* **Real Twilio Integration**: Dispatches formatted WhatsApp messages using the Twilio Node.js SDK when credentials are provided in `.env`.
-* **Zero-Cost Simulation Engine**: Gracefully falls back to formatted, timestamped console logs during local development if Twilio keys are omitted.
+* **Real Twilio Integration**: Dispatches formatted WhatsApp messages using the Twilio Node.js SDK when credentials are provided.
+* **Zero-Cost Simulation Engine**: Falls back to formatted console logs during local development if Twilio keys are omitted.
 * **FastAPI Interoperability**:
-  - `POST /api/notify/application-status`: Dispatches real-time approval, escalation, or rejection notices.
-  - `POST /api/notify/reminder`: Dispatches proactive reminders (e.g., Annual Jeevan Pramaan submission due, 70th Birthday universal healthcare upgrade).
-  - `POST /api/notify/action-required`: Sends plain-language explainability instructions to family members.
+  - `POST /api/notify/application-status`: Real-time approval, escalation, or rejection notices.
+  - `POST /api/notify/reminder`: Proactive reminders (Annual Jeevan Pramaan, 70th Birthday healthcare upgrade).
+  - `POST /api/notify/action-required`: Plain-language instructions for family members.
 
 ---
 
@@ -210,19 +205,19 @@ Located in `whatsapp-service/`, this Node.js microservice acts as an omnichannel
 
 ```mermaid
 flowchart LR
-    L1["Tier 1: Anganwadi Field Worker\nTablet Kiosk • Onboarding • Doc Upload"] -->|Auto Pass (< 0.15 Discrepancy)| AutoApprove["✅ Direct Processing"]
-    L1 -->|Discrepancy / Name Mismatch| L2["Tier 2: District Admin\nManual Override • Legal Review"]
-    L2 -->|Policy Conflict / System Fraud| L3["Tier 3: State / System Admin\nRule Matrix Update • Telemetry Oversight"]
+    L1["Tier 1: Anganwadi Field Worker\nTablet Kiosk + Onboarding + Doc Upload"] -->|Auto Pass| AutoApprove["Direct Processing"]
+    L1 -->|Discrepancy or Name Mismatch| L2["Tier 2: District Admin\nManual Override + Legal Review"]
+    L2 -->|Policy Conflict or Fraud| L3["Tier 3: System Admin\nRule Matrix Update + Telemetry"]
 ```
 
 ---
 
 ## 🏛️ Supported Government Welfare Schemes
 
-1. **IGNOAPS (Indira Gandhi National Old Age Pension Scheme)**: ₹500 - ₹1,000/mo social security for BPL citizens aged 60+.
-2. **AB-PMJAY Senior Citizen Universal Healthcare**: ₹5,00,000 annual cashless hospitalization coverage for **all citizens aged 70+** regardless of income.
+1. **IGNOAPS** (Indira Gandhi National Old Age Pension Scheme): ₹500–₹1,000/mo social security for BPL citizens aged 60+.
+2. **AB-PMJAY**: ₹5,00,000 annual cashless hospitalization for **all citizens aged 70+** regardless of income.
 3. **Rashtriya Vayoshri Yojana (RVY)**: Free assistive devices (spectacles, walking sticks, wheelchairs, hearing aids, dentures) for BPL seniors.
-4. **Varishtha Mediclaim**: Comprehensive healthcare insurance covering hospitalization and critical illnesses for seniors aged 60–80.
+4. **Varishtha Mediclaim**: Comprehensive healthcare insurance for seniors aged 60–80.
 5. **SACRED & AVYAY Portals**: Senior Citizen Employment and Active Aging platforms.
 
 ---
@@ -231,39 +226,25 @@ flowchart LR
 
 Aayu AI implements a **full production-grade Retrieval-Augmented Generation (RAG) pipeline** using Facebook's FAISS vector library and `sentence-transformers`.
 
-### How it works
-
 ```
 User Question (natural language)
         │
-        ▼
-[1. EMBED]  all-MiniLM-L6-v2 encodes query → 384-dim float32 vector
+[1. EMBED]    all-MiniLM-L6-v2 encodes query into 384-dim float32 vector
         │
-        ▼
-[2. RETRIEVE]  FAISS IndexFlatIP performs cosine similarity search
-               → Returns Top-4 most semantically relevant scheme chunks
+[2. RETRIEVE] FAISS IndexFlatIP cosine similarity search
+              Returns Top-4 most semantically relevant scheme chunks
         │
-        ▼
 [3. AUGMENT]  Retrieved chunks injected into Groq LLM prompt as grounded context
         │
-        ▼
-[4. GENERATE]  Llama-3.3-70b generates accurate, hallucination-free answer
+[4. GENERATE] Llama-3.3-70b generates accurate, hallucination-free answer
 ```
 
 ### Knowledge Ingestion at Startup
 On every backend boot, the `lifespan` event automatically:
 1. Reads all YAML scheme policy files from `backend/app/rules_engine/schemes/`.
-2. Converts each file into rich, human-readable text chunks (overview, eligibility, benefits, required documents).
+2. Converts each file into rich, human-readable text chunks.
 3. Embeds each chunk with `all-MiniLM-L6-v2` (384 dimensions).
 4. Builds a FAISS `IndexFlatIP` (inner product = cosine on normalized vectors).
-
-### Ask Aayu Chatbot
-A floating chat widget (`ChatAssistant.tsx`) is embedded in the Field Dashboard. Field workers can type any question:
-- *"Who qualifies for Rashtriya Vayoshri Yojana?"*
-- *"What documents does a 62-year-old widow need for IGNOAPS?"*
-- *"What is the pension amount for a person aged 80?"*
-
-Answers are retrieved semantically — not from a static FAQ, but from the live FAISS index.
 
 ---
 
@@ -271,11 +252,11 @@ Answers are retrieved semantically — not from a static FAQ, but from the live 
 
 * **JWT Bearer Token Architecture**: Native FastAPI token verification (`HS256`).
 * **Cryptographic Password Hashing**: Native `bcrypt` algorithm.
-* **Alphanumeric CAPTCHA Protection**: Both login portals display a randomized 6-character CAPTCHA on every visit. The character set excludes visually ambiguous characters (`I`, `O`, `0`, `1`). Input is case-insensitive with auto-uppercase styling. A new challenge is generated on every failed attempt.
+* **Alphanumeric CAPTCHA Protection**: Randomized 6-character CAPTCHA on every login visit. Excludes ambiguous characters (`I`, `O`, `0`, `1`). Auto-refreshes on failed attempts.
 * **Role-Based Access Control (RBAC)**:
-  - `FIELD_WORKER`: Access to Field Dashboard, citizen onboarding, document upload, and local offline sync.
-  - `DISTRICT_ADMIN`: Access to District Escalations queue and mismatch resolution.
-  - `SYSTEM_ADMIN`: Full system access, User Management (`/users`), live hardware telemetry, and policy rule editing.
+  - `FIELD_WORKER`: Field Dashboard, citizen onboarding, document upload, offline sync.
+  - `DISTRICT_ADMIN`: District Escalations queue, mismatch resolution.
+  - `SYSTEM_ADMIN`: Full access — User Management, hardware telemetry, policy rule editing.
 
 ---
 
@@ -287,69 +268,41 @@ vayosetu/
 │   ├── app/
 │   │   ├── agents/                     # LangGraph multi-agent modules
 │   │   ├── api/v1/                     # REST API route controllers
-│   │   │   ├── auth.py                 # JWT Auth, User Management & Edit APIs
+│   │   │   ├── auth.py                 # JWT Auth & User Management APIs
 │   │   │   ├── citizens.py             # Citizen CRUD
 │   │   │   ├── eligibility.py          # Orchestration pipeline triggers
 │   │   │   ├── applications.py         # Application management
 │   │   │   ├── documents.py            # OCR Document verification
 │   │   │   ├── reminders.py            # Lifecycle trigger scheduling
-│   │   │   └── admin_system.py         # Real Hardware Telemetry & Rules APIs
+│   │   │   └── admin_system.py         # Hardware Telemetry & Rules APIs
 │   │   ├── core/                       # Security & JWT logic
-│   │   ├── db/                         # SQLAlchemy session & SQLite/PostgreSQL init
+│   │   ├── db/                         # SQLAlchemy session & PostgreSQL init
 │   │   ├── models/                     # Database models & Pydantic schemas
 │   │   ├── rag/                        # FAISS semantic vector search engine
-│   │   │   ├── vector_store.py         # FAISSVectorStore with all-MiniLM-L6-v2 embeddings
-│   │   │   ├── ingestion.py            # Startup YAML → chunk → embed → index pipeline
-│   │   │   └── retriever.py            # Scheme retriever interface
-│   │   ├── services/
-│   │   │   ├── rag_service.py          # RAG orchestrator: retrieve → augment → generate
-│   │   │   └── citizen_service.py      # Citizen CRUD service
-│   │   ├── rules_engine/               # Deterministic AST evaluator & YAML schemas
-│   │   │   └── schemes/                # IGNOAPS, AB_PMJAY, RVY, AVYAY, SACRED YAMLs
-│   │   ├── config.py                   # Environment configuration settings
-│   │   └── main.py                     # FastAPI application entrypoint (FAISS lifespan)
-│   ├── requirements.txt                # Python backend dependencies
-│   └── vayosetu.db                     # SQLite development database
+│   │   ├── services/                   # Business logic services
+│   │   ├── rules_engine/               # AST evaluator & YAML schemes
+│   │   ├── config.py                   # Environment configuration
+│   │   └── main.py                     # FastAPI entrypoint
+│   └── requirements.txt                # Python dependencies
 │
 ├── frontend-field-dashboard/           # Next.js 14 Offline-First PWA Kiosk
-│   ├── app/
-│   │   ├── page.tsx                    # Main interactive field dashboard
-│   │   ├── login/                      # Field worker authentication
-│   │   ├── register/                   # Citizen registration kiosk
-│   │   ├── citizens/                   # Directory of registered seniors
-│   │   ├── documents/                  # Optical document verification upload
-│   │   ├── applications/               # Application status & tracking
-│   │   └── offline-sync/               # IndexedDB Sync Hub & Scheme Pre-caching
-│   ├── components/
-│   │   ├── Navigation.tsx              # App header with Shield icon & Aayu AI branding
-│   │   ├── ChatAssistant.tsx           # Floating FAISS RAG chat widget (Ask Aayu AI)
-│   │   └── PWARegistration.tsx         # Service Worker & auto-sync engine
-│   ├── lib/
-│   │   ├── api-client.ts               # Axios HTTP client (JWT interceptor)
-│   │   ├── offline-db.ts               # Native IndexedDB engine
-│   │   └── auth.ts                     # Login/logout utilities
-│   └── public/                         # PWA manifest.json, sw.js, SVG icons
+│   ├── app/                            # Routes: login, register, citizens, documents, applications, offline-sync
+│   ├── components/                     # Navigation, ChatAssistant, PWARegistration
+│   ├── lib/                            # api-client, offline-db, auth
+│   └── public/                         # PWA manifest.json, sw.js, icons
 │
 ├── frontend-admin-panel/               # Next.js 14 Admin Governance Portal
-│   ├── app/
-│   │   ├── dashboard/                  # Administrative analytics overview
-│   │   ├── login/                      # Admin secure login
-│   │   ├── users/                      # User & Role Management (Add/Edit)
-│   │   ├── escalations/                # Level 2 Document mismatch resolution
-│   │   ├── scheme-rules/               # Policy rules matrix visualizer
-│   │   └── pipeline-health/            # Real-time AI hardware & telemetry gauges
-│   ├── components/                     # Navigation & dashboard charts
-│   └── lib/                            # Admin Axios API client
+│   ├── app/                            # Routes: dashboard, login, users, escalations, scheme-rules, pipeline-health
+│   ├── components/                     # Navigation & charts
+│   └── lib/                            # Admin API client
 │
 ├── whatsapp-service/                   # Node.js Twilio WhatsApp Microservice
-│   ├── src/
-│   │   └── index.js                    # Express gateway, Twilio client & Simulation mode
-│   └── package.json                    # Node.js dependencies
+│   └── src/index.js                    # Express gateway & Simulation mode
 │
 ├── voice-service/                      # Regional dialect audio brief service
 ├── docker-compose.yml                  # Full-stack container orchestration
 ├── .env.example                        # Environment variables template
-└── README.md                           # Master documentation
+└── README.md                           # This file
 ```
 
 ---
@@ -365,174 +318,182 @@ vayosetu/
 | **RAG Chat** | `POST` | `/api/v1/ask` | **Ask Aayu AI**: FAISS semantic search + Groq LLM answer |
 | **Citizens** | `GET` | `/api/v1/citizens/` | Retrieve all registered citizens |
 | **Citizens** | `POST` | `/api/v1/citizens/` | Register a new senior citizen profile |
-| **Citizens** | `GET` | `/api/v1/citizens/{id}` | Retrieve specific citizen details & profile |
-| **Eligibility**| `POST`| `/api/v1/eligibility/evaluate-full/{id}` | **Run full 8-agent LangGraph execution pipeline** |
-| **Applications**| `GET`| `/api/v1/applications/` | List all submitted welfare scheme applications |
-| **Applications**| `POST`| `/api/v1/applications/` | Submit an application for an eligible citizen |
-| **Escalations**| `GET` | `/api/v1/admin/district/escalations` | Level 2 escalation queue for document mismatches |
-| **Escalations**| `POST`| `/api/v1/admin/district/escalations/{id}/resolve`| Resolve escalation or approve mismatch override |
-| **Telemetry** | `GET` | `/api/v1/admin/system/pipeline-health` | **Live hardware, DB ping latency & agent status** |
-| **Rules** | `GET` | `/api/v1/admin/system/rules` | Retrieve loaded policy rules from disk |
-| **WhatsApp** | `POST` | `http://localhost:4000/api/notify/*` | Dispatches lifecycle alerts to family proxies |
+| **Citizens** | `GET` | `/api/v1/citizens/{id}` | Retrieve specific citizen details |
+| **Eligibility** | `POST` | `/api/v1/eligibility/evaluate-full/{id}` | **Run full 8-agent LangGraph pipeline** |
+| **Applications** | `GET` | `/api/v1/applications/` | List all welfare scheme applications |
+| **Applications** | `POST` | `/api/v1/applications/` | Submit an application for an eligible citizen |
+| **Escalations** | `GET` | `/api/v1/admin/district/escalations` | Level 2 escalation queue |
+| **Escalations** | `POST` | `/api/v1/admin/district/escalations/{id}/resolve` | Resolve escalation or approve override |
+| **Telemetry** | `GET` | `/api/v1/admin/system/pipeline-health` | Live hardware & DB ping latency |
+| **Rules** | `GET` | `/api/v1/admin/system/rules` | Retrieve loaded policy rules |
+| **WhatsApp** | `POST` | `http://localhost:4000/api/notify/*` | Lifecycle alerts to family proxies |
 
 ---
 
 ## 🚀 Local Development & Setup Guide
 
 ### 1. Prerequisites
-- **Python**: `3.10` or higher (tested with `3.13`)
+- **Python**: `3.10` or higher
 - **Node.js**: `18.x` or higher
-- **Groq API Key**: (Optional for LLM features, get from [console.groq.com](https://console.groq.com))
+- **Groq API Key**: Free from [console.groq.com](https://console.groq.com)
+- **Google Gemini API Key**: Free from [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
 
 ### 2. Environment Configuration
+
 Create a `.env` file in the `backend/` directory:
+
 ```bash
-# backend/.env
-PROJECT_NAME="Aayu AI API"
-DATABASE_URL="sqlite:///./aayu_ai.db"
-SECRET_KEY="super-secret-aayu-ai-jwt-key"
+GOOGLE_API_KEY="your_google_gemini_api_key_here"
 GROQ_API_KEY="your_groq_api_key_here"
 GROQ_MODEL="llama-3.3-70b-versatile"
-GOOGLE_API_KEY="your_google_gemini_api_key_here"
+SECRET_KEY="super-secret-aayu-ai-jwt-key"
+# SQLite used locally by default. For cloud deployment, set:
+# DATABASE_URL="postgresql://user:password@host.neon.tech/neondb?sslmode=require"
 ```
 
 ### 3. Backend Setup (FastAPI)
+
 ```bash
-# Navigate to backend directory
 cd backend
-
-# Create and activate virtual environment
 python -m venv venv
-# On Windows:
-venv\Scripts\activate
-# On Linux/macOS:
-source venv/bin/activate
+venv\Scripts\activate        # Windows
+# source venv/bin/activate   # Linux/macOS
 
-# Install dependencies
 pip install -r requirements.txt
-pip install psutil bcrypt faiss-cpu sentence-transformers torch transformers
+# For local FAISS RAG features (~2GB download):
+pip install faiss-cpu sentence-transformers torch transformers
 
-# Start FastAPI server (FAISS RAG index is built automatically on startup)
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
-- API Base: `http://localhost:8000`
-- Interactive Swagger API Docs: `http://localhost:8000/docs`
+
+- API: `http://localhost:8000`
+- Swagger Docs: `http://localhost:8000/docs`
 
 ### 4. Field Worker PWA Dashboard (Port 3000)
+
 ```bash
-# In a new terminal:
 cd frontend-field-dashboard
 npm install
 npm run dev -- -p 3000
 ```
-- Web URL: `http://localhost:3000`
-- Features: Offline PWA, IndexedDB sync hub, touch registration kiosk.
+
+Login: `field_worker` / `password123`
 
 ### 5. Admin Governance Portal (Port 3001)
+
 ```bash
-# In a new terminal:
 cd frontend-admin-panel
 npm install
 npm run dev -- -p 3001
 ```
-- Web URL: `http://localhost:3001`
-- Features: User Management, Live Telemetry, Document Escalations, Rule Matrix.
+
+Login: `admin` / `password123`
 
 ### 6. WhatsApp Notification Microservice (Port 4000)
+
 ```bash
-# In a new terminal:
 cd whatsapp-service
 npm install
 npm start
 ```
-- Microservice URL: `http://localhost:4000`
-- Features: Outgoing Twilio WhatsApp notifications + interactive local simulation console.
 
 ---
 
-## ☁️ Cloud Deployment Guide (Vercel & Render)
+## ☁️ Cloud Deployment Guide (Vercel + Render + Neon)
 
-If a new user wants to deploy this entire architecture to the cloud exactly as we have, follow these configurations:
+### Step 1: Create a Free PostgreSQL Database (Neon)
+1. Go to **[neon.tech](https://neon.tech)** and sign up for free.
+2. Create a new project (e.g. `aayu-ai-db`).
+3. Copy the **Connection String**: `postgresql://user:pass@host.neon.tech/neondb?sslmode=require`
 
-### 1. Backend API (Render)
+### Step 2: Deploy Backend (Render)
+
 - **Service Type**: Web Service
 - **Root Directory**: `backend`
-- **Environment**: `Python 3`
-- **Build Command**: 
-  ```bash
-  pip install -r requirements.txt && pip install python-multipart
-  ```
-- **Start Command**: 
-  ```bash
-  uvicorn app.main:app --host 0.0.0.0 --port $PORT
-  ```
-- **Required Environment Variables**:
-  - `DATABASE_URL`: Your permanent PostgreSQL connection string (e.g. from [Neon.tech](https://neon.tech))
-  - `SECRET_KEY`: Any secure cryptographic string (e.g. `super-secret-key`)
-  - `GROQ_API_KEY`: Your key from Groq Console
-  - `GOOGLE_API_KEY`: Your key from Google Gemini AI
+- **Build Command**: `pip install -r requirements.txt`
+- **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 
-### 2. Frontend Dashboards (Vercel)
-Import the root repository into Vercel twice (once for each app):
+**Environment Variables** (set in Render → Environment tab):
 
-- **Field Worker Dashboard**:
-  - **Framework Preset**: `Next.js`
-  - **Root Directory**: `frontend-field-dashboard`
-  - **Environment Variables**: Add `NEXT_PUBLIC_API_URL` pointing to your deployed Render URL.
+| Key | Value |
+|:---|:---|
+| `DATABASE_URL` | Your Neon PostgreSQL connection string |
+| `SECRET_KEY` | Any secure random string |
+| `GOOGLE_API_KEY` | Your Google Gemini API key (from AI Studio) |
+| `GROQ_API_KEY` | Your Groq API key |
 
-- **Admin Governance Portal**:
-  - **Framework Preset**: `Next.js`
-  - **Root Directory**: `frontend-admin-panel`
-  - **Environment Variables**: Add `NEXT_PUBLIC_API_URL` pointing to your deployed Render URL.
+### Step 3: Deploy Frontends (Vercel)
+
+Import your GitHub repository into Vercel **twice** — once for each app:
+
+**Field Worker Dashboard**:
+1. Go to [vercel.com/new](https://vercel.com/new) → Import your `aayu-ai` repo
+2. Set **Root Directory** to `frontend-field-dashboard`
+3. Add env var: `NEXT_PUBLIC_API_URL` = your Render backend URL
+4. Click **Deploy**
+
+**Admin Governance Portal**:
+1. Go to [vercel.com/new](https://vercel.com/new) → Import your `aayu-ai` repo
+2. Set **Root Directory** to `frontend-admin-panel`
+3. Add env var: `NEXT_PUBLIC_API_URL` = your Render backend URL
+4. Click **Deploy**
 
 ---
 
 ## 🐳 Docker Deployment
 
-To launch all microservices and database containers simultaneously with Docker Compose:
-
 ```bash
 docker-compose up --build -d
 ```
 
-Services exposed:
-- **Backend API**: `http://localhost:8000`
-- **Field Dashboard (PWA)**: `http://localhost:3000`
-- **Admin Panel**: `http://localhost:3001`
-- **WhatsApp Gateway**: `http://localhost:4000`
+| Service | URL |
+|:---|:---|
+| Backend API | `http://localhost:8000` |
+| Field Dashboard (PWA) | `http://localhost:3000` |
+| Admin Panel | `http://localhost:3001` |
+| WhatsApp Gateway | `http://localhost:4000` |
 
 ---
 
 ## 🔮 Future Roadmap
 
-- [x] **Offline Progressive Web App (PWA)**: Full offline-first IndexedDB synchronization engine for remote villages without internet.
-- [x] **WhatsApp Family Proxy Gateway**: Automated proactive lifecycle alerts and reminder dispatches.
-- [x] **Administrative User Management**: Role assignment and user configuration interface.
-- [x] **FAISS Semantic RAG Engine**: Full vector-based retrieval-augmented generation with `all-MiniLM-L6-v2` embeddings and FAISS indexing.
-- [x] **Ask Aayu Floating Chatbot**: Real-time RAG-powered chat assistant for field workers embedded directly in the kiosk interface.
-- [x] **Audio Assist (Text-to-Speech)**: Native voice playback for chatbot responses.
-- [x] **Export PDF Receipts**: Downloadable and printable eligibility result summaries.
-- [x] **Alphanumeric CAPTCHA Login Security**: Bot-resistant randomized challenge on both login portals.
-- [ ] **DigiLocker Direct Integration**: Automated direct fetching of verified Aadhaar and Income Certificates via DigiLocker API.
-- [ ] **Bhashini Voice AI Integration**: Native Indian regional speech-to-speech interaction engine across 22 official languages.
-- [ ] **Jeevan Pramaan Biometric Bridge**: RD-service biometric fingerprint authentication for seamless annual digital life certificates.
+- [x] Offline-First PWA with IndexedDB synchronization engine
+- [x] WhatsApp Family Proxy Notification Gateway
+- [x] Administrative User & Role Management
+- [x] FAISS Semantic RAG Engine with `all-MiniLM-L6-v2` embeddings
+- [x] Ask Aayu Floating AI Chatbot (RAG-powered)
+- [x] Audio Assist (Text-to-Speech) for chatbot responses
+- [x] Export PDF Eligibility Receipts
+- [x] Alphanumeric CAPTCHA Login Security
+- [x] Permanent Cloud PostgreSQL Database (Neon)
+- [x] Gemini Vision OCR with graceful quota-aware degradation
+- [x] Full Application Lifecycle with Admin Kanban Board
+- [ ] DigiLocker Direct Integration
+- [ ] Bhashini Voice AI (22 Indian regional languages)
+- [ ] Jeevan Pramaan Biometric Bridge (RD-service fingerprint)
 
 ---
 
-## 🛠️ Recent System Patches & Updates
+## 🛠️ Production Patches & System Updates
 
-During our latest audit and optimization pass, the following critical improvements were made:
-- **FAISS RAG Upgrade**: Replaced in-memory context-dump RAG with a proper FAISS `IndexFlatIP` vector store. Scheme YAML files are automatically chunked, embedded with `sentence-transformers (all-MiniLM-L6-v2)`, and indexed at every backend startup.
-- **Ask Aayu Chat Widget**: Added a floating AI chatbot (`ChatAssistant.tsx`) to the Field Dashboard. Field workers can ask natural-language questions about scheme eligibility and get semantically retrieved, LLM-generated answers.
-- **Accessibility & Records**: Added an Audio Assist (Text-to-Speech) toggle to the Ask Aayu chatbot and a "Download PDF" receipt generator for eligibility results.
-- **CAPTCHA Login Security**: Both login portals now display a randomized 6-character alphanumeric CAPTCHA on every visit, with automatic refresh on failure.
-- **Offline Reliability:** Fixed an IndexedDB storage bug where transient initial storage blocks would permanently lock the database until reload. The engine now correctly retries on transient errors.
-- **Data Integrity:** Added the missing `has_bpl_card` boolean field to the frontend PWA register form, ensuring strict synchronization with the backend Schema requirements.
-- **Security Alignment:** Fixed an environment variable mismatch where the backend security module was incorrectly searching for `JWT_SECRET` instead of the system-wide `SECRET_KEY`.
-- **UI/UX Consistency:** Restored missing CSS variables (`.input-field`) for the Admin Governance Portal's user management modal.
-- **Notification Personalization:** The WhatsApp microservice now correctly passes real Senior Citizen names in proxy notifications rather than falling back to a hardcoded "Citizen" string.
-- **AI Vision Hybrid Architecture:** Switched the Document Verification Agent from Groq's decommissioned LLaMA Vision model to Google's `gemini-2.5-flash` for native OCR. Implemented an honest fallback mechanism that properly escalates unverified non-document images as a FRAUD_ALERT instead of auto-approving them when the AI service is unavailable.
-- **End-to-End Application Pipeline:** Integrated a full application lifecycle. Field Workers can now push a "Submit Application" button directly from the AI Eligibility Roadmap. District Admins receive these in a real-time, drag-and-drop **Applications Kanban Board** to review and move them to `APPROVED` or `ESCALATED`.
+All fixes below are live on the deployed system:
+
+| Fix | Details |
+|:---|:---|
+| **PostgreSQL Migration** | Migrated from ephemeral Render SQLite (wiped on every redeploy) to permanent Neon cloud PostgreSQL. All citizen, user, and application data now persists forever. |
+| **Gemini Vision SDK** | Added `google-genai` package to `requirements.txt`. The agent uses `from google import genai` (new SDK) which was missing on Render, causing permanent DEMO MODE fallback. |
+| **Google API Key** | Diagnosed and resolved API key mismatch between local `.env` and Render environment. Real Gemini OCR is now active on the cloud. |
+| **Frontend API URL** | Resolved env variable mismatch (`NEXT_PUBLIC_API_URL` vs `NEXT_PUBLIC_API_BASE_URL`). Added fallback Render URL in `next.config.js` as a safety net. |
+| **FAISS RAG Upgrade** | Replaced in-memory context-dump with proper FAISS `IndexFlatIP` vector store. Scheme YAMLs auto-chunked, embedded, and indexed on every backend startup. |
+| **Ask Aayu Chatbot** | Added floating AI chatbot (`ChatAssistant.tsx`) to the Field Dashboard for natural-language scheme queries. |
+| **Audio Assist** | Added Text-to-Speech toggle to Ask Aayu and "Download PDF" receipt generator for eligibility results. |
+| **CAPTCHA Security** | Both login portals now display a randomized 6-character alphanumeric CAPTCHA, auto-refreshing on failed attempts. |
+| **Offline Reliability** | Fixed IndexedDB bug where transient initial blocks permanently locked the database until reload. |
+| **Data Integrity** | Added missing `has_bpl_card` boolean to the frontend PWA register form, fixing backend schema sync. |
+| **Security Alignment** | Fixed backend security module incorrectly reading `JWT_SECRET` instead of `SECRET_KEY`. |
+| **Notification Names** | WhatsApp microservice now passes real Senior Citizen names instead of a hardcoded "Citizen" string. |
+| **AI Vision Hybrid** | Switched to `gemini-2.5-flash` for Document Verification. Fallback escalates unverified images as `FRAUD_ALERT` instead of auto-approving. |
+| **Application Pipeline** | Full lifecycle added: Field Workers submit from AI Roadmap; District Admins review on a real-time Kanban Board. |
 
 ---
 
