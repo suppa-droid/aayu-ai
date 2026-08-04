@@ -17,7 +17,7 @@
 
 Our production deployment is currently live! You can test the end-to-end functionality right now:
 
-- **📱 Field Worker PWA Dashboard**: [https://aayu-ai.vercel.app](https://aayu-ai.vercel.app)
+- **📱 Field Worker PWA Dashboard**: [https://aayu-ai-clqz.vercel.app](https://aayu-ai-clqz.vercel.app)
 - **🛡️ Admin Governance Portal**: [https://aayu-ai-d742.vercel.app](https://aayu-ai-d742.vercel.app)
 - **⚡ Backend API (Render)**: [https://aayu-ai-backendsamo.onrender.com](https://aayu-ai-backendsamo.onrender.com)
 
