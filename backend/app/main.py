@@ -52,7 +52,7 @@ app.add_middleware(
 )
 
 # Include API Routers
-app.include_router(admin_system_router, prefix=settings.API_V1_STR + "/admin/system")
+app.include_router(admin_system_router, prefix=settings.API_V1_STR)
 app.include_router(webhooks_router, prefix=settings.API_V1_STR)
 app.include_router(auth_router, prefix=settings.API_V1_STR)
 app.include_router(rag_chat_router, prefix=settings.API_V1_STR)
