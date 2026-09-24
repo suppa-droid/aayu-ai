@@ -24,6 +24,9 @@ export default function Login() {
 
   useEffect(() => {
     generateCaptcha();
+    if (new URLSearchParams(window.location.search).get('expired') === '1') {
+      setError('Your session expired. Sign in again, then register the citizen.');
+    }
   }, []);
 
   const handleSubmit = async (e: any) => {

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { getUser, logout } from '../lib/auth';
 import { usePathname, useRouter } from 'next/navigation';
 import { OfflineDB } from '../lib/offline-db';
+import { apiClient } from '../lib/api-client';
 import { 
   LayoutDashboard, 
   UserPlus, 
@@ -42,6 +43,11 @@ export default function Navigation() {
       logout();
     } else {
       setUser(currentUser);
+      if (currentUser && pathname !== '/login') {
+        apiClient.get('/auth/me').catch(() => {
+          // A 401 clears the saved login and returns the user to the login page.
+        });
+      }
     }
 
     checkDrafts();

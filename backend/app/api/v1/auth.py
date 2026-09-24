@@ -21,6 +21,17 @@ class UserCreate(BaseModel):
     role: str
     district: str = None
 
+@router.get("/me")
+def read_current_user(current: DBUser = Depends(get_current_user)):
+    """Used by the portals to check that the saved token still matches a user."""
+    return {
+        "id": current.id,
+        "username": current.username,
+        "role": current.role,
+        "full_name": current.full_name,
+        "district": current.district,
+    }
+
 @router.post("/login", response_model=Token)
 def login_access_token(db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()) -> Any:
     """
