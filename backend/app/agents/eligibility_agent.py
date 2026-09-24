@@ -20,7 +20,7 @@ class EligibilityAgent:
         )
 
         return EligibilityEvaluationResponse(
-            citizen_id=citizen.get("id", "temp-id"),
+            citizen_id=str(citizen.get("id") or "temp-id"),
             scheme_id=scheme_id,
             scheme_name=result["scheme_name"],
             status=result["status"],

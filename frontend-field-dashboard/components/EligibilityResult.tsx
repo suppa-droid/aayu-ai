@@ -13,6 +13,7 @@ import {
   Send
 } from 'lucide-react';
 import { apiClient } from '../lib/api-client';
+import { getUser } from '../lib/auth';
 
 interface Counterfactual {
   missing_criteria: string[];
@@ -49,7 +50,7 @@ export default function EligibilityResult({ evaluation, citizenId }: Eligibility
       await apiClient.post('/applications/', {
         citizen_id: citizenId,
         scheme_id: evaluation.scheme_id,
-        field_worker_id: "FW-101"
+        field_worker_id: getUser()?.username || 'field_worker'
       });
       setSubmitted(true);
     } catch (e: any) {
@@ -119,10 +120,10 @@ export default function EligibilityResult({ evaluation, citizenId }: Eligibility
       <div style={{ marginTop: '1rem' }}>
         <h4 style={{ color: '#34d399', fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           <CheckCircle2 size={16} />
-          <span>Satisfied Conditions ({evaluation.matched_criteria.length})</span>
+          <span>Satisfied Conditions ({evaluation.matched_criteria?.length || 0})</span>
         </h4>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.5rem' }}>
-          {evaluation.matched_criteria.map((item, idx) => (
+          {(evaluation.matched_criteria || []).map((item, idx) => (
             <span 
               key={idx} 
               style={{ 
@@ -159,7 +160,7 @@ export default function EligibilityResult({ evaluation, citizenId }: Eligibility
           <div style={{ marginBottom: '0.8rem' }}>
             <strong style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Missing Criteria:</strong>
             <ul style={{ paddingLeft: '1.2rem', marginTop: '0.3rem', color: '#fca5a5', fontSize: '0.88rem' }}>
-              {evaluation.counterfactual.missing_criteria.map((crit, idx) => (
+              {(evaluation.counterfactual?.missing_criteria || []).map((crit, idx) => (
                 <li key={idx}>{crit}</li>
               ))}
             </ul>
@@ -171,7 +172,7 @@ export default function EligibilityResult({ evaluation, citizenId }: Eligibility
               <span>What would unlock this scheme?</span>
             </strong>
             <ul style={{ paddingLeft: '1.2rem', marginTop: '0.3rem', color: '#fef08a', fontSize: '0.86rem' }}>
-              {evaluation.counterfactual.qualifying_scenarios.map((scen, idx) => (
+              {(evaluation.counterfactual?.qualifying_scenarios || []).map((scen, idx) => (
                 <li key={idx}>{scen}</li>
               ))}
             </ul>
@@ -183,7 +184,7 @@ export default function EligibilityResult({ evaluation, citizenId }: Eligibility
               <span>Actionable Resolution Steps:</span>
             </strong>
             <ul style={{ paddingLeft: '1.2rem', marginTop: '0.3rem', color: '#bae6fd', fontSize: '0.86rem' }}>
-              {evaluation.counterfactual.actionable_steps.map((step, idx) => (
+              {(evaluation.counterfactual?.actionable_steps || []).map((step, idx) => (
                 <li key={idx}>{step}</li>
               ))}
             </ul>

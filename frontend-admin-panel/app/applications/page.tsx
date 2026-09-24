@@ -6,13 +6,23 @@ import { Columns, Clock, AlertCircle, CheckCircle2, ShieldAlert } from 'lucide-r
 type Application = {
   id: string;
   citizen_id: string;
+  citizen_name?: string | null;
   scheme_id: string;
   status: string;
   remarks: string | null;
   created_at: string;
 };
 
-const STATUSES = ['SUBMITTED', 'IN_PROGRESS', 'ESCALATED', 'APPROVED', 'REJECTED'];
+const PIPELINE = [
+  { status: 'DRAFT', label: 'Draft' },
+  { status: 'SUBMITTED', label: 'Submitted' },
+  { status: 'DOCUMENT_VERIFIED', label: 'Docs Verified' },
+  { status: 'FLAGGED_MISMATCH', label: 'Flagged' },
+  { status: 'ESCALATED_DISTRICT', label: 'Escalated' },
+  { status: 'APPROVED', label: 'Approved' },
+  { status: 'REJECTED', label: 'Rejected' },
+  { status: 'RENEWAL_DUE', label: 'Renewal Due' },
+];
 
 export default function ApplicationsKanban() {
   const [applications, setApplications] = useState<Application[]>([]);
@@ -62,9 +72,12 @@ export default function ApplicationsKanban() {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'SUBMITTED': return <Clock size={16} color="#64748b" />;
-      case 'IN_PROGRESS': return <Clock size={16} color="#3b82f6" />;
-      case 'ESCALATED': return <ShieldAlert size={16} color="#f59e0b" />;
+      case 'SUBMITTED':
+      case 'DRAFT': return <Clock size={16} color="#64748b" />;
+      case 'DOCUMENT_VERIFIED': return <Clock size={16} color="#3b82f6" />;
+      case 'ESCALATED_DISTRICT':
+      case 'FLAGGED_MISMATCH':
+      case 'RENEWAL_DUE': return <ShieldAlert size={16} color="#f59e0b" />;
       case 'APPROVED': return <CheckCircle2 size={16} color="#10b981" />;
       case 'REJECTED': return <AlertCircle size={16} color="#ef4444" />;
       default: return null;
@@ -87,7 +100,7 @@ export default function ApplicationsKanban() {
         <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-secondary)' }}>Loading applications...</div>
       ) : (
         <div style={{ display: 'flex', gap: '1rem', overflowX: 'auto', paddingBottom: '1rem', alignItems: 'flex-start' }}>
-          {STATUSES.map(status => (
+          {PIPELINE.map(({ status, label }) => (
             <div 
               key={status} 
               onDragOver={handleDragOver}
@@ -106,7 +119,7 @@ export default function ApplicationsKanban() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-subtle)' }}>
                 <h3 style={{ fontSize: '0.95rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   {getStatusIcon(status)}
-                  {status.replace('_', ' ')}
+                  {label}
                 </h3>
                 <span style={{ background: 'var(--bg-card)', padding: '0.1rem 0.6rem', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)' }}>
                   {applications.filter(a => a.status === status).length}
@@ -125,7 +138,7 @@ export default function ApplicationsKanban() {
                       margin: 0, 
                       cursor: 'grab', 
                       borderLeft: status === 'APPROVED' ? '3px solid #10b981' : 
-                                 status === 'ESCALATED' ? '3px solid #f59e0b' : 
+                                 status === 'ESCALATED_DISTRICT' || status === 'FLAGGED_MISMATCH' ? '3px solid #f59e0b' : 
                                  status === 'REJECTED' ? '3px solid #ef4444' : '3px solid transparent'
                     }}
                   >
@@ -133,7 +146,7 @@ export default function ApplicationsKanban() {
                       #{app.id.split('-')[0]}
                     </div>
                     <div style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-primary)', marginBottom: '0.4rem' }}>
-                      Citizen: {app.citizen_id.substring(0,8)}...
+                      {app.citizen_name || `Citizen ${app.citizen_id.substring(0, 8)}`}
                     </div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                       <span style={{ background: 'rgba(79, 70, 229, 0.1)', color: '#818cf8', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>

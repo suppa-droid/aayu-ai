@@ -80,7 +80,9 @@ export default function SchemeRulesPage() {
                     }}
                   >
                     <code style={{ color: '#38bdf8', fontWeight: 600, fontFamily: 'JetBrains Mono' }}>
-                      {r.field} {r.operator} {String(r.value)}
+                      {r.operator === 'any'
+                        ? `ANY (${(r.conditions || []).map((c: any) => `${c.field} ${c.operator} ${String(c.value)}`).join(' OR ')})`
+                        : `${r.field} ${r.operator} ${String(r.value)}`}
                     </code>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '0.2rem' }}>
                       ↳ {r.description}

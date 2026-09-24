@@ -145,7 +145,7 @@ export default function DocumentVerificationPage() {
           <div style={{ display:'inline-flex', alignItems:'center', gap:'0.5rem', background:'rgba(45,212,191,0.12)', padding:'0.35rem 0.9rem', borderRadius:'999px', border:'1px solid rgba(45,212,191,0.35)', marginBottom:'0.9rem' }}>
             <span className="pulse-beacon" />
             <span style={{ color:'#2dd4bf', fontSize:'0.78rem', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em' }}>
-              Gemini Vision AI Engine Active (gemini-2.5-flash)
+              Gemini Vision AI Engine Active (gemini-3.6-flash)
             </span>
           </div>
           <h1 style={{ fontSize:'2.1rem', lineHeight:1.2, marginBottom:'0.7rem', display:'flex', alignItems:'center', gap:'0.65rem' }}>
@@ -161,7 +161,7 @@ export default function DocumentVerificationPage() {
       {/* KPI STATS */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'1.25rem', marginBottom:'1.75rem' }}>
         {([
-          { label:'OCR Vision Model',      value:'Gemini 2.5 Flash', sub:'Google AI Accelerated',    color:'#2dd4bf', icon:<Sparkles size={17} color="#2dd4bf" /> },
+          { label:'OCR Vision Model',      value:'Gemini 3.6 Flash', sub:'Google AI Accelerated',    color:'#2dd4bf', icon:<Sparkles size={17} color="#2dd4bf" /> },
           { label:'Verification Pipeline', value:'3-Tier HITL',       sub:'Auto / L1 Recapt / L2 District', color:'#38bdf8', icon:<ShieldCheck size={17} color="#38bdf8" /> },
           { label:'Accepted Credentials',  value:'UIDAI & NFSA',      sub:'Aadhaar, BPL Ration & Income',   color:'#fbbf24', icon:<FileCheck2 size={17} color="#f59e0b" /> },
         ] as const).map(s => (
@@ -330,7 +330,7 @@ export default function DocumentVerificationPage() {
             <div style={{ textAlign:'center', padding:'3.5rem 1.5rem' }}>
               <Sparkles size={34} color="#2dd4bf" style={{ margin:'0 auto 0.8rem', display:'block' }} className="animate-spin" />
               <h4 style={{ color:'#2dd4bf', marginBottom:'0.3rem' }}>Scanning Document...</h4>
-              <p style={{ fontSize:'0.83rem', color:'#94a3b8' }}>Gemini Vision Model running OCR</p>
+              <p style={{ fontSize:'0.83rem', color:'#94a3b8' }}>Gemini 3.6 Flash running OCR</p>
             </div>
           )}
 

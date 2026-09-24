@@ -14,7 +14,9 @@ class CitizenEvaluationState(TypedDict):
     evaluations: List[Dict[str, Any]]
     eligible_scheme_ids: List[str]
     roadmap: List[Any]
-    proactive_triggers: List[str]
+    recommendation_package: Dict[str, Any]
+    roadmaps: List[Dict[str, Any]]
+    proactive_triggers: List[Any]
     total_schemes_evaluated: int
 
 # ── Node functions ───────────────────────────────────────────────────────────
@@ -44,14 +46,24 @@ def eligibility_node(state: CitizenEvaluationState):
 
 async def recommendation_node(state: CitizenEvaluationState):
     """Async node — LangGraph ainvoke() handles this correctly."""
-    roadmap = await recommendation_agent.recommend_roadmap(
+    package = await recommendation_agent.build_recommendation(
         state["profile"], state["eligible_scheme_ids"]
     )
-    return {"roadmap": roadmap}
+    return {
+        "roadmap": package["sequence"],
+        "recommendation_package": {
+            "summary": package["summary"],
+            "voice_briefing_script": package["voice_briefing_script"],
+            "eligible_schemes": package["eligible_schemes"],
+        },
+    }
 
 def planning_node(state: CitizenEvaluationState):
-    proactive_triggers = planning_agent.check_proactive_triggers(state["profile"])
-    return {"proactive_triggers": proactive_triggers}
+    profile = state["profile"]
+    return {
+        "proactive_triggers": planning_agent.check_proactive_triggers(profile),
+        "roadmaps": planning_agent.build_application_roadmaps(profile, state["eligible_scheme_ids"]),
+    }
 
 # ── Build the graph ──────────────────────────────────────────────────────────
 workflow = StateGraph(CitizenEvaluationState)
@@ -84,6 +96,12 @@ class VayoSetuOrchestrator:
             "evaluations": [],
             "eligible_scheme_ids": [],
             "roadmap": [],
+            "recommendation_package": {
+                "summary": "",
+                "voice_briefing_script": "",
+                "eligible_schemes": [],
+            },
+            "roadmaps": [],
             "proactive_triggers": [],
             "total_schemes_evaluated": 0
         }
@@ -95,9 +113,16 @@ class VayoSetuOrchestrator:
             "profile": final_state["profile"],
             "evaluations": final_state["evaluations"],
             "roadmap": final_state["roadmap"],
+            "recommendation_package": final_state.get("recommendation_package") or {},
+            "roadmaps": final_state.get("roadmaps") or [],
             "proactive_triggers": final_state["proactive_triggers"],
             "eligible_count": len(final_state["eligible_scheme_ids"]),
             "total_schemes_evaluated": final_state["total_schemes_evaluated"]
         }
+
+    def run_full_pipeline(self, raw_citizen_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Sync wrapper for tests and scripts that are not already inside an event loop."""
+        import asyncio
+        return asyncio.run(self.run_full_pipeline_async(raw_citizen_data))
 
 orchestrator = VayoSetuOrchestrator()

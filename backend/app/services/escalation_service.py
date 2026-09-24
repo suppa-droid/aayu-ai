@@ -35,9 +35,9 @@ class EscalationService:
 
     def list_escalations(self, db: Session, status: Optional[str] = "OPEN") -> List[DBEscalation]:
         query = db.query(DBEscalation)
-        if status:
+        if status and status.upper() != "ALL":
             query = query.filter(DBEscalation.status == status)
-        return query.all()
+        return query.order_by(DBEscalation.created_at.desc()).all()
 
     def resolve_escalation(self, db: Session, escalation_id: str, resolution_notes: str) -> DBEscalation:
         esc = db.query(DBEscalation).filter(DBEscalation.id == escalation_id).first()
@@ -45,8 +45,8 @@ class EscalationService:
             esc.status = "RESOLVED"
             esc.suggested_ai_resolution = f"Resolved by District Admin: {resolution_notes}"
             app = db.query(DBApplication).filter(DBApplication.id == esc.application_id).first()
-            if app:
-                app.status = ApplicationStatus.APPROVED
+            if app and app.status == ApplicationStatus.ESCALATED_DISTRICT:
+                app.status = ApplicationStatus.DOCUMENT_VERIFIED
             db.commit()
             db.refresh(esc)
         return esc

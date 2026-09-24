@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { CheckCircle2, Clock, FileText, ArrowRight, Zap, ShieldAlert, Send } from 'lucide-react';
 import { apiClient } from '../lib/api-client';
+import { getUser } from '../lib/auth';
 
 interface Step {
   step_number: number;
@@ -35,7 +36,7 @@ export default function SchemeRoadmap({ roadmap, citizenId }: SchemeRoadmapProps
       await apiClient.post('/applications/', {
         citizen_id: citizenId,
         scheme_id: roadmap.scheme_id,
-        field_worker_id: "FW-101" // In a real app, this comes from auth context
+        field_worker_id: getUser()?.username || 'field_worker'
       });
       setSubmitted(true);
     } catch (e: any) {

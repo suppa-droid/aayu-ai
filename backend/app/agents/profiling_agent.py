@@ -4,6 +4,7 @@ class ProfilingAgent:
     def process(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         """Validates and normalizes citizen demographic profile."""
         normalized = {
+            "id": str(raw_data.get("id") or "temp-id"),
             "name": str(raw_data.get("name", "")).strip().title(),
             "age": int(raw_data.get("age", 0)),
             "gender": str(raw_data.get("gender", "Male")).capitalize(),

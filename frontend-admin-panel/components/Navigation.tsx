@@ -21,8 +21,11 @@ export default function Navigation() {
 
   useEffect(() => {
     const currentUser = getUser();
+    const adminRoles = ['DISTRICT_ADMIN', 'SYSTEM_ADMIN', 'LEVEL_2_DISTRICT_ADMIN', 'LEVEL_3_SYSTEM_ADMIN'];
     if (!currentUser && pathname !== '/login') {
       router.push('/login');
+    } else if (currentUser && pathname !== '/login' && !adminRoles.includes(currentUser.role)) {
+      logout();
     } else {
       setUser(currentUser);
     }

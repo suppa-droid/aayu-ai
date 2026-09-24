@@ -26,9 +26,19 @@ export default function ApplicationsPage() {
       case 'REJECTED':
         return <span className="badge badge-ineligible"><AlertCircle size={13} /> REJECTED</span>;
       case 'ESCALATED':
+      case 'ESCALATED_DISTRICT':
         return <span className="badge badge-warning"><ShieldAlert size={13} /> ESCALATED L2</span>;
+      case 'DOCUMENT_VERIFIED':
+        return <span className="badge badge-info"><Clock size={13} /> DOCS VERIFIED</span>;
+      case 'FLAGGED_MISMATCH':
+        return <span className="badge badge-warning"><AlertCircle size={13} /> FLAGGED</span>;
+      case 'RENEWAL_DUE':
+        return <span className="badge badge-warning"><Clock size={13} /> RENEWAL DUE</span>;
+      case 'SUBMITTED':
+      case 'DRAFT':
+        return <span className="badge badge-info"><Clock size={13} /> {status}</span>;
       default:
-        return <span className="badge badge-info"><Clock size={13} /> {status || 'IN_PROGRESS'}</span>;
+        return <span className="badge badge-info"><Clock size={13} /> {status || 'SUBMITTED'}</span>;
     }
   };
 
@@ -93,7 +103,7 @@ export default function ApplicationsPage() {
                     <div style={{ display: 'flex', gap: '0.8rem', color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.2rem' }}>
                       <span>Scheme: <strong style={{ color: 'var(--text-primary)' }}>{app.scheme_id}</strong></span>
                       <span>•</span>
-                      <span>Beneficiary: <strong style={{ color: 'var(--text-primary)' }}>{app.citizen_id}</strong></span>
+                      <span>Beneficiary: <strong style={{ color: 'var(--text-primary)' }}>{app.citizen_name || app.citizen_id}</strong></span>
                     </div>
                   </div>
                 </div>

@@ -1,6 +1,8 @@
 import { adminApi } from './admin-api';
 
-export async function login(username: string, password: string = 'password123') {
+const ADMIN_ROLES = ['DISTRICT_ADMIN', 'SYSTEM_ADMIN', 'LEVEL_2_DISTRICT_ADMIN', 'LEVEL_3_SYSTEM_ADMIN'];
+
+export async function login(username: string, password: string = 'password123'): Promise<true | string> {
   try {
     const formData = new URLSearchParams();
     formData.append('username', username);
@@ -13,6 +15,9 @@ export async function login(username: string, password: string = 'password123') 
     });
 
     const data = response.data;
+    if (!ADMIN_ROLES.includes(data.user?.role)) {
+      return 'This account is a field worker. Use the field kiosk instead.';
+    }
     localStorage.setItem('vayosetu_admin_token', data.access_token);
     localStorage.setItem('vayosetu_admin_user', JSON.stringify({
       role: data.user.role,
@@ -23,7 +28,7 @@ export async function login(username: string, password: string = 'password123') 
     return true;
   } catch (error) {
     console.error('Login failed', error);
-    return false;
+    return 'Invalid username or password.';
   }
 }
 

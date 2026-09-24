@@ -19,9 +19,9 @@ export default function EscalationsPage() {
   const fetchEscalations = async (showLoading = false) => {
     if (showLoading) setIsRefreshing(true);
     try {
-      const statusParam = statusFilter === 'ALL' ? '' : statusFilter;
-      const url = statusParam ? `/admin/district/escalations?status=${statusParam}` : '/admin/district/escalations';
-      const res = await adminApi.get(url);
+      const res = await adminApi.get('/admin/district/escalations', {
+        params: { status: statusFilter },
+      });
       if (Array.isArray(res.data)) {
         // Sort newest first
         const sorted = [...res.data].sort((a, b) => {

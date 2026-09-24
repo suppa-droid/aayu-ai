@@ -139,9 +139,6 @@ class FAISSVectorStore:
         converts them to rich text chunks, embeds them, and builds the FAISS index.
         """
         model = _get_model()
-        if model is None:
-            logger.error("Cannot build RAG index: sentence-transformers not loaded.")
-            return
 
         yaml_files = list(schemes_dir.glob("*.yaml")) + list(schemes_dir.glob("*.yml"))
         if not yaml_files:
@@ -172,12 +169,18 @@ class FAISSVectorStore:
         if not all_chunks:
             return
 
+        self.chunks = all_chunks
+        self.metadata = all_meta
+        if model is None:
+            self.embeddings = []
+            self._faiss_index = None
+            logger.warning("Scheme text loaded without embeddings. Ask Aayu will use keyword overlap.")
+            return
+
         # Batch encode for speed
         logger.info(f"Embedding {len(all_chunks)} chunks with sentence-transformers...")
         embeddings = model.encode(all_chunks, convert_to_numpy=True, show_progress_bar=False)
 
-        self.chunks = all_chunks
-        self.metadata = all_meta
         self.embeddings = list(embeddings)
         self._build_faiss_index()
         logger.info(f"RAG Knowledge Base ready: {len(self.chunks)} chunks indexed.")
@@ -191,7 +194,17 @@ class FAISSVectorStore:
 
         model = _get_model()
         if model is None:
-            return [{"text": c, **self.metadata[i]} for i, c in enumerate(self.chunks[:top_k])]
+            import re
+            terms = [t for t in re.findall(r"[a-z0-9]+", query.lower()) if len(t) > 2]
+            scored = []
+            for i, chunk in enumerate(self.chunks):
+                hay = chunk.lower()
+                scored.append((sum(1 for term in terms if term in hay), i))
+            scored.sort(reverse=True)
+            chosen = [idx for score, idx in scored if score > 0][:top_k]
+            if not chosen:
+                chosen = list(range(min(top_k, len(self.chunks))))
+            return [{"text": self.chunks[i], "score": 0.0, **self.metadata[i]} for i in chosen]
 
         query_embedding = model.encode(query, convert_to_numpy=True).astype(np.float32)
 

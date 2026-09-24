@@ -13,10 +13,17 @@ rules:
     operator: ">="
     value: 60
     description: "Applicant must be aged 60 years or above."
-  - field: "is_bpl"
-    operator: "=="
-    value: true
+  - operator: "any"
     description: "Belong to BPL category or certified monthly income <= Rs. 3,000."
+    conditions:
+      - field: "is_bpl"
+        operator: "=="
+        value: true
+        description: "Applicant belongs to a Below Poverty Line household."
+      - field: "monthly_income"
+        operator: "<="
+        value: 3000
+        description: "Certified monthly income is at or below Rs. 3,000."
 prerequisites:
   - "IGNOAPS"
 benefit_details:

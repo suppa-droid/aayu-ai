@@ -34,6 +34,7 @@ export default function RegisterCitizenPage() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
 
   const handleChange = (e: any) => {
     const { name, value, type, checked } = e.target;
@@ -47,6 +48,13 @@ export default function RegisterCitizenPage() {
     e.preventDefault();
     setIsSubmitting(true);
     setSuccessMsg('');
+    setErrorMsg('');
+
+    if (!/^[6-9]\d{9}$/.test(formData.mobile_number.trim())) {
+      setErrorMsg('Enter a valid 10-digit Indian mobile number.');
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
       if (!navigator.onLine) {
@@ -60,9 +68,15 @@ export default function RegisterCitizenPage() {
       setSuccessMsg('✓ Beneficiary successfully onboarded into Aayu AI Registry!');
       setTimeout(() => router.push('/'), 1200);
     } catch (err: any) {
+      const status = err?.response?.status;
+      if (status && status < 500) {
+        const detail = err.response?.data?.detail;
+        setErrorMsg(typeof detail === 'string' ? detail : 'Registration was rejected. Check the form and try again.');
+        return;
+      }
       console.error('API submission failed, buffering to IndexedDB:', err);
       await OfflineStorageManager.saveDraftCitizen(formData);
-      setSuccessMsg('⚠️ Network delay detected: Beneficiary saved safely to local IndexedDB queue.');
+      setSuccessMsg('Network delay detected: beneficiary saved to the local queue and will sync when the connection returns.');
       setTimeout(() => router.push('/offline-sync'), 1500);
     } finally {
       setIsSubmitting(false);
@@ -94,6 +108,12 @@ export default function RegisterCitizenPage() {
             </p>
           </div>
         </div>
+
+        {errorMsg && (
+          <div className="animate-fade-in" style={{ margin: '1.25rem 0', padding: '1rem 1.25rem', borderRadius: 'var(--radius-sm)', background: 'rgba(244, 63, 94, 0.12)', border: '1px solid rgba(244, 63, 94, 0.35)', color: '#fda4af', fontWeight: 600 }}>
+            {errorMsg}
+          </div>
+        )}
 
         {successMsg && (
           <div 

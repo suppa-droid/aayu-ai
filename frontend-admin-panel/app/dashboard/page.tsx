@@ -101,8 +101,8 @@ export default function AdminDashboardPage() {
             <span style={{ fontSize: '0.86rem', fontWeight: 600 }}>Vector RAG Store</span>
             <Activity size={18} color="#38bdf8" />
           </div>
-          <div className="stat-val" style={{ color: '#38bdf8' }}>ONLINE</div>
-          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>ChromaDB Official Embeddings</p>
+          <div className="stat-val" style={{ color: '#38bdf8' }}>{health?.rag_vector_store?.status || 'STANDBY'}</div>
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>FAISS scheme embeddings</p>
         </div>
       </div>
 

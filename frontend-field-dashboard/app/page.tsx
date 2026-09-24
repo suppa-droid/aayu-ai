@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { apiClient } from '../lib/api-client';
 import CitizenCard from '../components/CitizenCard';
 import EligibilityResult from '../components/EligibilityResult';
@@ -29,10 +29,20 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterBplOnly, setFilterBplOnly] = useState(false);
+  const autoEvaluated = useRef<string | null>(null);
 
   useEffect(() => {
     fetchCitizens();
   }, []);
+
+  useEffect(() => {
+    if (!citizens.length || typeof window === 'undefined') return;
+    const citizenId = new URLSearchParams(window.location.search).get('citizen');
+    if (!citizenId || autoEvaluated.current === citizenId) return;
+    if (!citizens.some((c) => c.id === citizenId)) return;
+    autoEvaluated.current = citizenId;
+    handleEvaluate(citizenId);
+  }, [citizens]);
 
   const fetchCitizens = async () => {
     try {
@@ -52,6 +62,9 @@ export default function Home() {
       return;
     }
 
+    const esc = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, (ch) => (
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' } as Record<string, string>)[ch]
+    ));
     const eligibleSchemes = evaluations.filter(e => e.status === 'ELIGIBLE' || e.status === 'CONDITIONALLY_ELIGIBLE');
     const ineligibleSchemes = evaluations.filter(e => e.status === 'INELIGIBLE');
 
@@ -173,12 +186,12 @@ export default function Home() {
 
           <div class="citizen-info">
             <div class="citizen-grid">
-              <div class="info-item"><strong>Name:</strong> ${selectedCitizen.name}</div>
-              <div class="info-item"><strong>Mobile:</strong> ${selectedCitizen.mobile_number}</div>
-              <div class="info-item"><strong>Age:</strong> ${selectedCitizen.age} Years</div>
+              <div class="info-item"><strong>Name:</strong> ${esc(selectedCitizen.name)}</div>
+              <div class="info-item"><strong>Mobile:</strong> ${esc(selectedCitizen.mobile_number)}</div>
+              <div class="info-item"><strong>Age:</strong> ${esc(selectedCitizen.age)} Years</div>
               <div class="info-item"><strong>BPL Status:</strong> ${selectedCitizen.is_bpl ? 'Yes' : 'No'}</div>
-              <div class="info-item"><strong>Monthly Income:</strong> ₹${selectedCitizen.monthly_income?.toLocaleString()}</div>
-              <div class="info-item"><strong>Location:</strong> ${selectedCitizen.district}, ${selectedCitizen.state}</div>
+              <div class="info-item"><strong>Monthly Income:</strong> ₹${esc(selectedCitizen.monthly_income?.toLocaleString())}</div>
+              <div class="info-item"><strong>Location:</strong> ${esc(selectedCitizen.district)}, ${esc(selectedCitizen.state)}</div>
             </div>
           </div>
 
@@ -186,13 +199,13 @@ export default function Home() {
           ${eligibleSchemes.length === 0 ? '<p>No eligible schemes found.</p>' : eligibleSchemes.map((ev: any) => `
             <div class="scheme-card eligible">
               <div class="scheme-header">
-                <span>${ev.scheme_name} (${ev.scheme_id})</span>
+                <span>${esc(ev.scheme_name)} (${esc(ev.scheme_id)})</span>
                 <span class="badge eligible">${ev.status}</span>
               </div>
               <div><strong>Match Score:</strong> ${ev.score}%</div>
               <div><strong>Satisfied Conditions:</strong></div>
               <ul class="criteria-list">
-                ${ev.matched_criteria.map((c: string) => `<li>${c}</li>`).join('')}
+                ${(ev.matched_criteria || []).map((c: string) => `<li>${esc(c)}</li>`).join('')}
               </ul>
             </div>
           `).join('')}
@@ -201,7 +214,7 @@ export default function Home() {
           ${ineligibleSchemes.length === 0 ? '<p>No ineligible schemes found.</p>' : ineligibleSchemes.map((ev: any) => `
             <div class="scheme-card ineligible">
               <div class="scheme-header">
-                <span>${ev.scheme_name} (${ev.scheme_id})</span>
+                <span>${esc(ev.scheme_name)} (${esc(ev.scheme_id)})</span>
                 <span class="badge ineligible">${ev.status}</span>
               </div>
               <div><strong>Match Score:</strong> ${ev.score}%</div>
@@ -209,11 +222,11 @@ export default function Home() {
               <div class="explainability">
                 <strong>Missing Criteria:</strong>
                 <ul class="criteria-list" style="color: #b91c1c;">
-                  ${ev.counterfactual.missing_criteria.map((c: string) => `<li>${c}</li>`).join('')}
+                  ${(ev.counterfactual?.missing_criteria || ev.unmatched_criteria || []).map((c: string) => `<li>${esc(c)}</li>`).join('')}
                 </ul>
                 <strong style="margin-top: 5px; display: block;">Actionable Steps to Unlock:</strong>
                 <ul class="criteria-list">
-                  ${ev.counterfactual.actionable_steps.map((s: string) => `<li>${s}</li>`).join('')}
+                  ${(ev.counterfactual?.actionable_steps || []).map((s: string) => `<li>${esc(s)}</li>`).join('')}
                 </ul>
               </div>
             </div>
@@ -244,6 +257,10 @@ export default function Home() {
     setRecommendation(null);
     setRoadmaps([]);
     const found = citizens.find((c) => c.id === citizenId);
+    if (!found) {
+      setLoading(false);
+      return;
+    }
     setSelectedCitizen(found);
 
     try {
@@ -259,9 +276,10 @@ export default function Home() {
   };
 
   const filteredCitizens = citizens.filter((c) => {
-    const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          c.district.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          c.mobile_number.includes(searchQuery);
+    const query = searchQuery.toLowerCase();
+    const matchesSearch = (c.name || '').toLowerCase().includes(query) ||
+                          (c.district || '').toLowerCase().includes(query) ||
+                          (c.mobile_number || '').includes(searchQuery);
     const matchesBpl = filterBplOnly ? c.is_bpl : true;
     return matchesSearch && matchesBpl;
   });

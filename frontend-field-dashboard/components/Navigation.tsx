@@ -35,8 +35,11 @@ export default function Navigation() {
 
   useEffect(() => {
     const currentUser = getUser();
+    const fieldRoles = ['FIELD_WORKER', 'LEVEL_1_FIELD_WORKER'];
     if (!currentUser && pathname !== '/login') {
       router.push('/login');
+    } else if (currentUser && pathname !== '/login' && !fieldRoles.includes(currentUser.role)) {
+      logout();
     } else {
       setUser(currentUser);
     }

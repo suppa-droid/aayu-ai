@@ -4,7 +4,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.db_models import DBUser
-from app.core.security import verify_password, get_password_hash, create_access_token
+from app.core.security import verify_password, get_password_hash, create_access_token, get_current_user
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -43,8 +43,19 @@ def login_access_token(db: Session = Depends(get_db), form_data: OAuth2PasswordR
         }
     }
 
+ADMIN_ROLES = {"DISTRICT_ADMIN", "SYSTEM_ADMIN", "LEVEL_2_DISTRICT_ADMIN", "LEVEL_3_SYSTEM_ADMIN"}
+
+def _require_admin(user: DBUser = Depends(get_current_user)) -> DBUser:
+    if user.role not in ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Admin access required.")
+    return user
+
 @router.post("/register", response_model=Token)
-def register_user(user_in: UserCreate, db: Session = Depends(get_db)) -> Any:
+def register_user(
+    user_in: UserCreate,
+    db: Session = Depends(get_db),
+    _: DBUser = Depends(_require_admin),
+) -> Any:
     """
     Create a new user.
     """
@@ -85,7 +96,7 @@ class UserUpdate(BaseModel):
     district: str = None
 
 @router.get("/users")
-def list_users(db: Session = Depends(get_db)):
+def list_users(db: Session = Depends(get_db), _: DBUser = Depends(_require_admin)):
     """
     List all registered users.
     """
@@ -99,7 +110,12 @@ def list_users(db: Session = Depends(get_db)):
     } for u in users]
 
 @router.put("/users/{user_id}")
-def update_user(user_id: str, user_in: UserUpdate, db: Session = Depends(get_db)):
+def update_user(
+    user_id: str,
+    user_in: UserUpdate,
+    db: Session = Depends(get_db),
+    _: DBUser = Depends(_require_admin),
+):
     """
     Update an existing user.
     """

@@ -7,34 +7,66 @@ class DeterministicRulesEngine:
         self.loader = rule_loader
 
     def evaluate_rule(self, rule: Dict[str, Any], citizen: Dict[str, Any]) -> Tuple[bool, str]:
-        field = rule.get("field")
         operator = rule.get("operator")
-        target_val = rule.get("value")
         description = rule.get("description", "")
+
+        # OR-group: pass when any nested condition passes (e.g. BPL or income ceiling).
+        if operator == "any":
+            passed_any = False
+            for cond in rule.get("conditions") or []:
+                ok, _msg = self.evaluate_rule(cond, citizen)
+                if ok:
+                    passed_any = True
+                    break
+            reason = f"[{'PASSED' if passed_any else 'FAILED'}] {description}"
+            return passed_any, reason
+
+        field = rule.get("field")
+        target_val = rule.get("value")
 
         citizen_val = citizen.get(field)
         if citizen_val is None:
             return False, f"Missing data attribute '{field}' for citizen."
 
         matched = False
-        if operator == "==":
-            matched = (citizen_val == target_val)
-        elif operator == ">=":
-            matched = (float(citizen_val) >= float(target_val))
-        elif operator == "<=":
-            matched = (float(citizen_val) <= float(target_val))
-        elif operator == ">":
-            matched = (float(citizen_val) > float(target_val))
-        elif operator == "<":
-            matched = (float(citizen_val) < float(target_val))
+        try:
+            if operator == "==":
+                matched = (citizen_val == target_val)
+            elif operator == ">=":
+                matched = (float(citizen_val) >= float(target_val))
+            elif operator == "<=":
+                matched = (float(citizen_val) <= float(target_val))
+            elif operator == ">":
+                matched = (float(citizen_val) > float(target_val))
+            elif operator == "<":
+                matched = (float(citizen_val) < float(target_val))
+            else:
+                return False, f"[FAILED] Unsupported operator '{operator}' on {field}"
+        except (TypeError, ValueError):
+            return False, f"[FAILED] Could not compare {field}={citizen_val} with {operator} {target_val}"
 
         reason = f"[{'PASSED' if matched else 'FAILED'}] {description} (Actual: {field}={citizen_val})"
         return matched, reason
+
+    def _missing_documents(self, scheme: Dict[str, Any], citizen: Dict[str, Any]) -> List[str]:
+        """Demographic rules can pass while a required credential is still absent."""
+        gaps = []
+        for doc in scheme.get("required_documents") or []:
+            label = str(doc).lower()
+            if "aadhaar" in label and citizen.get("has_aadhaar", True) is False:
+                gaps.append(f"Missing document: {doc}")
+            elif "bpl" in label and citizen.get("has_bpl_card", True) is False:
+                gaps.append(f"Missing document: {doc}")
+            elif "bank" in label and citizen.get("has_bank_account", True) is False:
+                gaps.append(f"Missing document: {doc}")
+        return gaps
 
     def evaluate_scheme(self, scheme_id: str, citizen: Dict[str, Any]) -> Dict[str, Any]:
         scheme = self.loader.get_scheme(scheme_id)
         if not scheme:
             return {
+                "scheme_id": scheme_id,
+                "scheme_name": scheme_id,
                 "status": EligibilityStatus.INELIGIBLE,
                 "score": 0.0,
                 "matched_criteria": [],
@@ -58,10 +90,15 @@ class DeterministicRulesEngine:
 
         score = (passed_rules / total_rules) * 100.0 if total_rules > 0 else 100.0
 
+        # A failed hard rule is a rejection. Conditional means every rule passed
+        # but a required identity or bank document is still missing.
         if passed_rules == total_rules:
-            status = EligibilityStatus.ELIGIBLE
-        elif passed_rules > 0:
-            status = EligibilityStatus.CONDITIONALLY_ELIGIBLE
+            doc_gaps = self._missing_documents(scheme, citizen)
+            if doc_gaps:
+                status = EligibilityStatus.CONDITIONALLY_ELIGIBLE
+                unmatched_criteria.extend(doc_gaps)
+            else:
+                status = EligibilityStatus.ELIGIBLE
         else:
             status = EligibilityStatus.INELIGIBLE
 

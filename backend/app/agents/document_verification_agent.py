@@ -1,26 +1,46 @@
 import json
-import base64
 import logging
 import os
-from typing import Dict, Any
+import re
+from typing import Any, Dict, List, Optional
+
 from fastapi import UploadFile
+
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+# gemini-2.0-flash and gemini-2.5-flash return 404 for current keys.
+# gemini-3.6-flash is the vision model this key can call; lite is the fallback.
+VISION_MODELS = ["gemini-3.6-flash", "gemini-3.5-flash-lite"]
+
+
+def _clean_key(value: str) -> str:
+    return (value or "").strip().strip('"').strip("'")
+
+
+def _norm_tokens(value: str) -> List[str]:
+    return [tok for tok in re.sub(r"[^a-z\s]", " ", (value or "").lower()).split() if len(tok) > 1]
+
+
+def names_match(profile_name: str, extracted_name: str) -> bool:
+    """Fuzzy match that ignores case, punctuation, and extra middle names."""
+    profile = _norm_tokens(profile_name)
+    extracted = _norm_tokens(extracted_name)
+    if not profile or not extracted:
+        return False
+    return set(profile).issubset(set(extracted)) or set(extracted).issubset(set(profile))
+
 
 class DocumentVerificationAgent:
-    """Verifies uploaded documents using Google Gemini Vision AI OCR (google-genai SDK)."""
+    """Verifies uploaded documents with Gemini vision OCR."""
 
     @property
-    def GOOGLE_API_KEY(self):
-        return os.environ.get("GOOGLE_API_KEY", "")
+    def GOOGLE_API_KEY(self) -> str:
+        # Settings loads backend/.env. os.environ alone misses that file,
+        # which forced every local scan into simulation mode.
+        return _clean_key(settings.GOOGLE_API_KEY) or _clean_key(os.environ.get("GOOGLE_API_KEY", ""))
 
-    VISION_MODEL = "gemini-2.0-flash"
-
-    # ──────────────────────────────────────────────────────────────────────────
-    # Smart Demo Simulation — runs when Vision API is unavailable (quota etc.)
-    # Analyses the image content + filename heuristically.
-    # ──────────────────────────────────────────────────────────────────────────
     def _smart_simulation(
         self,
         document_type: str,
@@ -28,46 +48,21 @@ class DocumentVerificationAgent:
         file_name: str,
         image_bytes: bytes,
     ) -> Dict[str, Any]:
-        """
-        Intelligent offline simulation:
-        - Tiny file → likely blurry/corrupt
-        - Large JPEG/PNG with no typical doc keywords → treat as random photo → FRAUD_ALERT
-        - Filename contains citizen-sounding name → VERIFIED (demo)
-        """
-        fn = file_name.lower()
-        size = len(image_bytes)
+        """Deterministic results for the three labelled demo samples only."""
+        fn = (file_name or "").lower()
 
-        # 1. Quality check
-        if size < 3000 or "blur" in fn or "low" in fn:
+        if "blur" in fn or "low" in fn:
             return {
                 "is_valid": False,
                 "status": "FLAGGED_QUALITY",
-                "issue": f"{document_type} image appears blurry or unreadable (file too small or poor quality).",
+                "issue": f"{document_type} image appears blurry or unreadable.",
                 "escalate_level": 1,
                 "action": "Field Worker must recapture a clear document photo.",
                 "extracted_name": "Unreadable",
                 "document_number": "N/A",
-                "_note": "Simulated result (Vision AI quota exceeded)",
+                "source": "demo",
             }
 
-        # 2. Check for obvious non-document keywords in filename (selfies, celeb photos, etc.)
-        non_doc_keywords = [
-            "elon", "musk", "trump", "modi", "celebrity", "selfie", "photo",
-            "person", "face", "portrait", "headshot", "profile_pic",
-        ]
-        if any(kw in fn for kw in non_doc_keywords):
-            return {
-                "is_valid": False,
-                "status": "FRAUD_ALERT",
-                "issue": "Uploaded image is NOT a valid government identity document (detected as a person/celebrity photo).",
-                "escalate_level": 2,
-                "action": "Escalated to Level 2 District Admin — possible document fraud attempt.",
-                "extracted_name": "NOT_A_VALID_DOCUMENT",
-                "document_number": "N/A",
-                "_note": "Simulated result (Vision AI quota exceeded — filename-based heuristic)",
-            }
-
-        # 3. Mismatch check via filename
         if "mismatch" in fn or "wrong" in fn or "other" in fn:
             fake_name = "Suresh Kumar" if "ramesh" in citizen_name.lower() else "Anil Sharma"
             return {
@@ -78,106 +73,42 @@ class DocumentVerificationAgent:
                 "action": "Escalated to Level 2 District Admin for name-correction affidavit.",
                 "extracted_name": fake_name,
                 "document_number": "7829-1092-4410",
-                "_note": "Simulated result (Vision AI quota exceeded)",
+                "source": "demo",
             }
 
-        # 4. Default: Treat as valid document (demo approval)
-        doc_number = "4729-1038-9921" if "aadhaar" in document_type.lower() else "RC-MH-2024-00142"
+        if "matching" in fn:
+            doc_number = "4729-1038-9921" if "aadhaar" in document_type.lower() else "RC-MH-2024-00142"
+            return {
+                "is_valid": True,
+                "status": "VERIFIED",
+                "issue": None,
+                "escalate_level": None,
+                "action": f"Demo sample accepted. Extracted Name: '{citizen_name}' matches profile.",
+                "extracted_name": citizen_name,
+                "document_number": doc_number,
+                "source": "demo",
+            }
+
+        # A real upload must not be auto-approved when vision is down.
         return {
-            "is_valid": True,
-            "status": "VERIFIED",
-            "issue": None,
-            "escalate_level": None,
-            "action": (
-                f"[DEMO MODE] Document accepted via intelligent simulation. "
-                f"Extracted Name: '{citizen_name}' matches profile."
-            ),
-            "extracted_name": citizen_name,
-            "document_number": doc_number,
-            "_note": "Simulated result (Vision AI quota exceeded — name assumed from profile for demo)",
+            "is_valid": False,
+            "status": "VISION_AI_UNAVAILABLE",
+            "issue": "Gemini Vision could not read this image, so it was not auto-approved.",
+            "escalate_level": 2,
+            "action": "Escalated for manual district review. Retry the scan when vision responds.",
+            "extracted_name": "N/A",
+            "document_number": "N/A",
+            "source": "fallback",
+            "_bytes": len(image_bytes),
         }
 
-    # ──────────────────────────────────────────────────────────────────────────
-    # Main verification — calls Gemini Vision via google-genai (new SDK)
-    # ──────────────────────────────────────────────────────────────────────────
-    async def verify_document_async(
-        self,
-        document_type: str,
-        citizen_name: str,
-        file: UploadFile,
-    ) -> Dict[str, Any]:
+    def _is_demo_sample(self, file_name: str) -> bool:
+        fn = (file_name or "").lower()
+        return any(token in fn for token in ("matching_aadhaar", "name_mismatch", "blurry_image"))
 
-        image_data = await file.read()
-        file_name  = file.filename or "uploaded_doc.jpg"
-        api_key    = self.GOOGLE_API_KEY
-
-        if not api_key:
-            logger.warning("GOOGLE_API_KEY not set — using smart simulation.")
-            return self._smart_simulation(document_type, citizen_name, file_name, image_data)
-
-        mime_type = (
-            file.content_type
-            if file.content_type and file.content_type != "application/octet-stream"
-            else "image/jpeg"
-        )
-
-        prompt = f"""You are a strict Document Verification Agent for India's Aayu AI e-governance portal.
-Analyse this uploaded image of a '{document_type}'.
-
-Tasks:
-1. Is the image too blurry, dark, or low-quality to read? → set is_blurry true.
-2. Extract the citizen's full name exactly as printed on the document.
-3. Extract the document ID/number (Aadhaar 12-digit, ration card number, etc.) — or 'N/A'.
-4. Does the extracted name match the profile name '{citizen_name}'? → fuzzy match ignoring case/spacing.
-   IMPORTANT: if the document is NOT an official Indian government identity document (e.g. it is a photo of a person, a random object, or a non-Indian document), set name_matches to false and extracted_name to 'NOT_A_VALID_DOCUMENT'.
-
-Respond ONLY with valid JSON (no markdown, no extra text):
-{{
-  "is_blurry": false,
-  "extracted_name": "Name from document",
-  "document_number": "xxxx-xxxx-xxxx",
-  "name_matches": true
-}}"""
-
-        try:
-            from google import genai
-            from google.genai import types
-
-            client = genai.Client(api_key=api_key)
-
-            image_part = types.Part.from_bytes(data=image_data, mime_type=mime_type)
-            response = client.models.generate_content(
-                model=self.VISION_MODEL,
-                contents=[prompt, image_part],
-            )
-            res_text = response.text
-            logger.info(f"Vision OCR raw response: {res_text!r}")
-
-        except Exception as e:
-            error_str = str(e)
-            logger.error(f"Gemini Vision error: {error_str}")
-
-            if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str or "quota" in error_str.lower():
-                logger.warning("Vision AI quota exceeded — switching to smart simulation mode.")
-                return self._smart_simulation(document_type, citizen_name, file_name, image_data)
-            elif "API_KEY_INVALID" in error_str or "api key" in error_str.lower():
-                logger.warning("Invalid API key — switching to smart simulation mode.")
-                return self._smart_simulation(document_type, citizen_name, file_name, image_data)
-            else:
-                logger.warning(f"Unexpected Vision API error — smart simulation. Error: {error_str[:150]}")
-                return self._smart_simulation(document_type, citizen_name, file_name, image_data)
-
-        try:
-            import re
-            json_match = re.search(r"\{[\s\S]*?\}", res_text) or re.search(r"\{[\s\S]*\}", res_text)
-            if not json_match:
-                raise ValueError(f"No JSON found in model response: {res_text!r}")
-            ai_data = json.loads(json_match.group(0))
-        except Exception as e:
-            logger.error(f"Failed to parse Vision AI JSON: {e}")
-            return self._smart_simulation(document_type, citizen_name, file_name, image_data)
-
-        # ── Interpret AI result ──────────────────────────────────────────────
+    def _interpret(self, ai_data: Dict[str, Any], document_type: str, citizen_name: str, model: str) -> Dict[str, Any]:
+        extracted = str(ai_data.get("extracted_name") or "").strip() or "Unknown"
+        number = str(ai_data.get("document_number") or "N/A")
 
         if ai_data.get("is_blurry"):
             return {
@@ -186,22 +117,25 @@ Respond ONLY with valid JSON (no markdown, no extra text):
                 "issue": f"{document_type} image is blurry or unreadable.",
                 "escalate_level": 1,
                 "action": "Field Worker must recapture a clear document photo.",
-                "extracted_name": ai_data.get("extracted_name", "Unreadable"),
-                "document_number": ai_data.get("document_number", "N/A"),
+                "extracted_name": extracted,
+                "document_number": number,
+                "source": model,
             }
 
-        if not ai_data.get("name_matches"):
-            extracted = ai_data.get("extracted_name", "Unknown")
-            if extracted == "NOT_A_VALID_DOCUMENT":
-                return {
-                    "is_valid": False,
-                    "status": "FRAUD_ALERT",
-                    "issue": "Uploaded image is NOT a valid government identity document.",
-                    "escalate_level": 2,
-                    "action": "Escalated to Level 2 District Admin — possible document fraud attempt.",
-                    "extracted_name": "N/A",
-                    "document_number": ai_data.get("document_number", "N/A"),
-                }
+        if extracted == "NOT_A_VALID_DOCUMENT" or ai_data.get("is_official_document") is False:
+            return {
+                "is_valid": False,
+                "status": "FRAUD_ALERT",
+                "issue": "Uploaded image is not a valid government identity document.",
+                "escalate_level": 2,
+                "action": "Escalated to Level 2 District Admin — possible document fraud attempt.",
+                "extracted_name": "N/A",
+                "document_number": number,
+                "source": model,
+            }
+
+        matched = names_match(citizen_name, extracted)
+        if not matched:
             return {
                 "is_valid": False,
                 "status": "FLAGGED_MISMATCH",
@@ -209,7 +143,8 @@ Respond ONLY with valid JSON (no markdown, no extra text):
                 "escalate_level": 2,
                 "action": "Escalated to Level 2 District Admin for name-correction affidavit.",
                 "extracted_name": extracted,
-                "document_number": ai_data.get("document_number", "N/A"),
+                "document_number": number,
+                "source": model,
             }
 
         return {
@@ -217,13 +152,102 @@ Respond ONLY with valid JSON (no markdown, no extra text):
             "status": "VERIFIED",
             "issue": None,
             "escalate_level": None,
-            "action": (
-                f"Document verified via Gemini Vision AI. "
-                f"Extracted Name: '{ai_data.get('extracted_name')}' matches profile."
-            ),
-            "extracted_name": ai_data.get("extracted_name", citizen_name),
-            "document_number": ai_data.get("document_number", "N/A"),
+            "action": f"Document verified via Gemini ({model}). Extracted Name: '{extracted}' matches profile.",
+            "extracted_name": extracted,
+            "document_number": number,
+            "source": model,
         }
+
+    def _call_gemini(self, api_key: str, prompt: str, image_data: bytes, mime_type: str) -> Optional[Dict[str, Any]]:
+        from google import genai
+        from google.genai import types
+
+        client = genai.Client(api_key=api_key)
+        image_part = types.Part.from_bytes(data=image_data, mime_type=mime_type)
+        config = types.GenerateContentConfig(
+            response_mime_type="application/json",
+            temperature=0,
+        )
+        last_error = None
+        for model in VISION_MODELS:
+            try:
+                response = client.models.generate_content(
+                    model=model,
+                    contents=[prompt, image_part],
+                    config=config,
+                )
+                raw = (getattr(response, "text", None) or "").strip()
+                if not raw:
+                    raise ValueError("empty vision response")
+                return {"model": model, "data": json.loads(raw)}
+            except Exception as exc:
+                last_error = exc
+                message = str(exc)
+                logger.warning("Gemini model %s failed: %s", model, message[:240])
+                # Auth and quota failures will not be fixed by another model name.
+                if any(token in message for token in ("API_KEY_INVALID", "401", "403", "429", "RESOURCE_EXHAUSTED")):
+                    break
+        if last_error:
+            logger.error("Gemini vision unavailable: %s", str(last_error)[:300])
+        return None
+
+    async def verify_document_async(
+        self,
+        document_type: str,
+        citizen_name: str,
+        file: UploadFile,
+    ) -> Dict[str, Any]:
+        image_data = await file.read()
+        file_name = file.filename or "uploaded_doc.jpg"
+
+        if self._is_demo_sample(file_name):
+            return self._smart_simulation(document_type, citizen_name, file_name, image_data)
+
+        if len(image_data) < 800:
+            return {
+                "is_valid": False,
+                "status": "FLAGGED_QUALITY",
+                "issue": f"{document_type} image is too small to read.",
+                "escalate_level": 1,
+                "action": "Field Worker must recapture a clear document photo.",
+                "extracted_name": "Unreadable",
+                "document_number": "N/A",
+                "source": "quality-check",
+            }
+
+        api_key = self.GOOGLE_API_KEY
+        if not api_key:
+            logger.warning("GOOGLE_API_KEY not set — refusing to auto-approve.")
+            return self._smart_simulation(document_type, citizen_name, file_name, image_data)
+
+        mime_type = (
+            file.content_type
+            if file.content_type and file.content_type.startswith("image/")
+            else "image/jpeg"
+        )
+        prompt = f"""You are a strict document verification agent for an Indian welfare portal.
+The uploaded image is supposed to be a '{document_type}'.
+The citizen profile name is '{citizen_name}'.
+
+Return JSON with exactly these fields:
+{{
+  "is_blurry": false,
+  "is_official_document": true,
+  "extracted_name": "name printed on the document, or NOT_A_VALID_DOCUMENT",
+  "document_number": "id number or N/A"
+}}
+
+Rules:
+- is_blurry is true only when the text cannot be read.
+- is_official_document is false for selfies, random objects, and non-government images. Then extracted_name must be NOT_A_VALID_DOCUMENT.
+- Copy the name exactly as printed. Do not copy the profile name unless it is actually printed.
+"""
+
+        import asyncio
+        parsed = await asyncio.to_thread(self._call_gemini, api_key, prompt, image_data, mime_type)
+        if not parsed:
+            return self._smart_simulation(document_type, citizen_name, file_name, image_data)
+        return self._interpret(parsed["data"], document_type, citizen_name, parsed["model"])
 
 
 document_verification_agent = DocumentVerificationAgent()

@@ -19,3 +19,38 @@ def test_ignoaps_eligibility_failed():
     res = rules_engine.evaluate_scheme("IGNOAPS", citizen)
     assert res["status"] == "INELIGIBLE"
     assert res["score"] == 0.0
+
+def test_partial_rule_match_is_ineligible():
+    citizen = {
+        "age": 55,
+        "is_bpl": True,
+        "monthly_income": 2000.0
+    }
+    res = rules_engine.evaluate_scheme("IGNOAPS", citizen)
+    assert res["status"] == "INELIGIBLE"
+
+def test_rvy_accepts_income_or_bpl():
+    by_income = rules_engine.evaluate_scheme("RVY", {
+        "age": 65,
+        "is_bpl": False,
+        "monthly_income": 2500,
+    })
+    assert by_income["status"] == "ELIGIBLE"
+    neither = rules_engine.evaluate_scheme("RVY", {
+        "age": 65,
+        "is_bpl": False,
+        "monthly_income": 8000,
+    })
+    assert neither["status"] == "INELIGIBLE"
+
+def test_missing_aadhaar_is_conditional():
+    citizen = {
+        "age": 65,
+        "is_bpl": True,
+        "monthly_income": 2000.0,
+        "has_aadhaar": False,
+        "has_bpl_card": True,
+        "has_bank_account": True,
+    }
+    res = rules_engine.evaluate_scheme("IGNOAPS", citizen)
+    assert res["status"] == "CONDITIONALLY_ELIGIBLE"

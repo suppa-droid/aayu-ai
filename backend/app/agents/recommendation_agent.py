@@ -7,9 +7,32 @@ logger = logging.getLogger(__name__)
 
 
 class RecommendationAgent:
-    async def recommend_roadmap(self, citizen: Dict[str, Any], eligible_schemes: List[str]) -> List[Dict[str, Any]]:
+    def _fallback_copy(self, citizen: Dict[str, Any], eligible_schemes: List[str]) -> Dict[str, str]:
+        name = citizen.get("name") or "the citizen"
+        if not eligible_schemes:
+            summary = (
+                f"{name} does not currently meet the hard rules for any loaded scheme. "
+                "Use the counterfactual steps to close the gaps before filing."
+            )
+            voice = f"Namaste {name} ji. Abhi koi yojana poori tarah se qualify nahi ho rahi. Missing documents ya income proof complete kijiye."
+            return {"summary": summary, "voice_briefing_script": voice}
+
+        joined = ", ".join(eligible_schemes)
+        summary = (
+            f"{name} qualifies for {len(eligible_schemes)} scheme(s): {joined}. "
+            "File the pension or health cover that pays first, then the dependent benefits."
+        )
+        voice = (
+            f"Namaste {name} ji. Aap {len(eligible_schemes)} yojanaon ke liye yogya hain: {joined}. "
+            "Pehle pension ya health cover ka form jama kijiye."
+        )
+        return {"summary": summary, "voice_briefing_script": voice}
+
+    async def build_recommendation(self, citizen: Dict[str, Any], eligible_schemes: List[str]) -> Dict[str, Any]:
+        """Return the cross-scheme sequence plus a spoken summary for the field kiosk."""
         age = citizen.get("age", 60)
-        base_roadmap = graph_query_engine.generate_roadmap(eligible_schemes, age)
+        sequence = graph_query_engine.generate_roadmap(eligible_schemes, age)
+        copy = self._fallback_copy(citizen, eligible_schemes)
 
         llm = get_llm(temperature=0.7)
         if llm and eligible_schemes:
@@ -26,8 +49,6 @@ class RecommendationAgent:
             """
             try:
                 response = await llm.ainvoke(prompt)
-
-                # Safely extract text regardless of whether content is str or list
                 raw = response.content
                 if isinstance(raw, list):
                     parts = []
@@ -41,18 +62,17 @@ class RecommendationAgent:
                     ai_summary = str(raw).strip()
                 import re
                 ai_summary = re.sub(r"<think>.*?</think>", "", ai_summary, flags=re.DOTALL).strip()
-
                 if ai_summary:
-                    base_roadmap.insert(0, {
-                        "step": 0,
-                        "action": "🤖 AI Personalized Summary",
-                        "details": ai_summary,
-                        "timeline": "Immediate"
-                    })
+                    copy["summary"] = ai_summary
             except Exception as e:
                 logger.warning(f"LLM recommendation summary failed: {e}")
 
-        return base_roadmap
+        return {
+            "summary": copy["summary"],
+            "voice_briefing_script": copy["voice_briefing_script"],
+            "eligible_schemes": eligible_schemes,
+            "sequence": sequence,
+        }
 
 
 recommendation_agent = RecommendationAgent()

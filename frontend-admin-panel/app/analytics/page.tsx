@@ -1,14 +1,33 @@
 'use client';
+import { useEffect, useState } from 'react';
+import { adminApi } from '../../lib/admin-api';
 import { TrendingUp, Users, CheckCircle2, RefreshCw, BarChart3, MapPin } from 'lucide-react';
 
+type DistrictRow = {
+  district: string;
+  onboarded: number;
+  enrolled: number;
+  escalations: number;
+  rate: number;
+};
+
 export default function AnalyticsPage() {
-  const districtData = [
-    { district: 'Varanasi', onboarded: 4120, enrolled: 3650, escalations: 45, rate: 88.5 },
-    { district: 'Gorakhpur', onboarded: 3890, enrolled: 3210, escalations: 62, rate: 82.5 },
-    { district: 'Prayagraj', onboarded: 3450, enrolled: 2840, escalations: 78, rate: 82.3 },
-    { district: 'Ayodhya', onboarded: 2820, enrolled: 2490, escalations: 31, rate: 88.2 },
-    { district: 'Lucknow Rural', onboarded: 5200, enrolled: 4610, escalations: 89, rate: 88.6 },
-  ];
+  const [districtData, setDistrictData] = useState<DistrictRow[]>([]);
+  const [totals, setTotals] = useState({ citizens: 0, approved: 0, escalations: 0 });
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    adminApi.get('/admin/system/analytics')
+      .then((res) => {
+        setDistrictData(res.data.districts || []);
+        setTotals({
+          citizens: res.data.total_citizens || 0,
+          approved: res.data.approved_applications || 0,
+          escalations: res.data.open_escalations || 0,
+        });
+      })
+      .catch(() => setError('Live analytics could not be loaded.'));
+  }, []);
 
   return (
     <div className="animate-fade-in">
@@ -29,8 +48,8 @@ export default function AnalyticsPage() {
             <span style={{ fontSize: '0.86rem', fontWeight: 600 }}>Total Beneficiaries Onboarded</span>
             <Users size={18} color="#8b5cf6" />
           </div>
-          <div className="stat-val" style={{ color: '#c084fc' }}>19,480</div>
-          <p style={{ fontSize: '0.82rem', color: '#34d399', marginTop: '0.2rem' }}>+14.2% MoM growth across all districts</p>
+          <div className="stat-val" style={{ color: '#c084fc' }}>{totals.citizens.toLocaleString()}</div>
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>Registered in the live database</p>
         </div>
 
         <div className="stat-card" style={{ borderLeftColor: '#10b981' }}>
@@ -38,17 +57,17 @@ export default function AnalyticsPage() {
             <span style={{ fontSize: '0.86rem', fontWeight: 600 }}>Schemes Successfully Disbursed</span>
             <CheckCircle2 size={18} color="#10b981" />
           </div>
-          <div className="stat-val" style={{ color: '#34d399' }}>16,800</div>
-          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>86.2% overall conversion saturation</p>
+          <div className="stat-val" style={{ color: '#34d399' }}>{totals.approved.toLocaleString()}</div>
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>Applications marked approved</p>
         </div>
 
         <div className="stat-card" style={{ borderLeftColor: '#ec4899' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--text-secondary)' }}>
-            <span style={{ fontSize: '0.86rem', fontWeight: 600 }}>Proactive Renewals Automated</span>
+            <span style={{ fontSize: '0.86rem', fontWeight: 600 }}>Open Escalations</span>
             <RefreshCw size={18} color="#ec4899" />
           </div>
-          <div className="stat-val" style={{ color: '#f472b6' }}>4,920</div>
-          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>Zero-friction auto-verification</p>
+          <div className="stat-val" style={{ color: '#f472b6' }}>{totals.escalations.toLocaleString()}</div>
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>District queue still open</p>
         </div>
       </div>
 
@@ -71,6 +90,12 @@ export default function AnalyticsPage() {
               </tr>
             </thead>
             <tbody>
+              {error && (
+                <tr><td colSpan={5} style={{ color: '#fda4af' }}>{error}</td></tr>
+              )}
+              {!error && districtData.length === 0 && (
+                <tr><td colSpan={5} style={{ color: 'var(--text-secondary)' }}>No citizens have been registered yet.</td></tr>
+              )}
               {districtData.map((d, idx) => (
                 <tr key={idx}>
                   <td style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.45rem' }}>

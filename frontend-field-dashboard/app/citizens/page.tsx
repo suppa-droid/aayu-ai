@@ -26,9 +26,10 @@ export default function CitizensListPage() {
   };
 
   const filtered = citizens.filter((c) => {
-    const matchSearch = c.name.toLowerCase().includes(search.toLowerCase()) || 
-                        c.district.toLowerCase().includes(search.toLowerCase()) ||
-                        c.mobile_number.includes(search);
+    const query = search.toLowerCase();
+    const matchSearch = (c.name || '').toLowerCase().includes(query) ||
+                        (c.district || '').toLowerCase().includes(query) ||
+                        (c.mobile_number || '').includes(search);
     if (filterType === 'BPL') return matchSearch && c.is_bpl;
     if (filterType === 'SUPER_SENIOR') return matchSearch && c.age >= 70;
     return matchSearch;
@@ -99,7 +100,7 @@ export default function CitizensListPage() {
           <CitizenCard 
             key={cit.id} 
             citizen={cit} 
-            onEvaluate={() => router.push('/')} 
+            onEvaluate={() => router.push(`/?citizen=${cit.id}`)} 
           />
         ))}
       </div>

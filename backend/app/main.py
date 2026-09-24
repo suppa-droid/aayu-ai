@@ -25,13 +25,12 @@ init_db()
 async def lifespan(app):
     # ── Startup: Build FAISS RAG index (only if sentence-transformers is available) ──
     try:
-        from sentence_transformers import SentenceTransformer  # noqa
         from app.rag.ingestion import seed_scheme_documents
         logger.info("Starting Aayu AI RAG ingestion pipeline...")
         seed_scheme_documents()
         logger.info("RAG ingestion complete.")
-    except (ImportError, Exception) as e:
-        logger.warning(f"RAG ingestion skipped (sentence-transformers not available): {e}")
+    except Exception as e:
+        logger.warning(f"RAG ingestion skipped: {e}")
     yield
     # ── Shutdown ──
 

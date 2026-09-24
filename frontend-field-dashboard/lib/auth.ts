@@ -1,6 +1,8 @@
 import { apiClient } from './api-client';
 
-export async function login(username: string, password: string = 'password123') {
+const FIELD_ROLES = ['FIELD_WORKER', 'LEVEL_1_FIELD_WORKER'];
+
+export async function login(username: string, password: string = 'password123'): Promise<true | string> {
   try {
     const formData = new URLSearchParams();
     formData.append('username', username);
@@ -13,6 +15,9 @@ export async function login(username: string, password: string = 'password123') 
     });
 
     const data = response.data;
+    if (!FIELD_ROLES.includes(data.user?.role)) {
+      return 'This account belongs to the admin portal, not the field kiosk.';
+    }
     localStorage.setItem('vayosetu_token', data.access_token);
     localStorage.setItem('vayosetu_user', JSON.stringify({
       role: data.user.role,
@@ -23,7 +28,7 @@ export async function login(username: string, password: string = 'password123') 
     return true;
   } catch (error) {
     console.error('Login failed', error);
-    return false;
+    return 'Invalid username or password.';
   }
 }
 

@@ -11,10 +11,18 @@ from app.db.session import get_db
 from app.rules_engine.rule_loader import rule_loader
 from app.config import settings
 from app.models.db_models import DBCitizen, DBApplication, DBEscalation, DBReminder, DBUser, DBScheme
+from app.models.enums import ApplicationStatus
 
 router = APIRouter(prefix="/admin/system", tags=["Level 3 System Admin"])
 
 START_TIME = time.time()
+
+def _rag_available() -> bool:
+    try:
+        import sentence_transformers  # noqa: F401
+        return True
+    except Exception:
+        return False
 
 @router.get("/pipeline-health")
 def get_pipeline_health(db: Session = Depends(get_db)):
@@ -98,9 +106,9 @@ def get_pipeline_health(db: Session = Depends(get_db)):
             "id": "document_verification_agent",
             "name": "DocumentVerificationAgent",
             "status": "HEALTHY" if has_groq_key else "STANDBY",
-            "role": "Groq Llama-3.2-11b Vision OCR parser & fraud tamper detector",
+            "role": "Gemini vision OCR parser and fraud check",
             "latency_ms": 420,
-            "engine": "Groq Vision LPU"
+            "engine": "Gemini 3.6 Flash"
         },
         {
             "id": "reminder_agent",
@@ -157,7 +165,7 @@ def get_pipeline_health(db: Session = Depends(get_db)):
             "status": "ONLINE" if has_groq_key else "STANDBY (KEY_NOT_CONFIGURED)"
         },
         "rag_vector_store": {
-            "status": "ONLINE",
+            "status": "ONLINE" if _rag_available() else "STANDBY",
             "embedding_model": "all-MiniLM-L6-v2",
             "storage_path": settings.VECTOR_STORE_PATH
         },
@@ -168,3 +176,54 @@ def get_pipeline_health(db: Session = Depends(get_db)):
 @router.get("/rules")
 def list_system_rules():
     return rule_loader.list_schemes()
+
+@router.get("/analytics")
+def get_live_analytics(db: Session = Depends(get_db)):
+    """District counts from the live database, not sample figures."""
+    citizens = db.query(DBCitizen).all()
+    applications = db.query(DBApplication).all()
+    escalations = db.query(DBEscalation).all()
+
+    active_ids = {
+        app.citizen_id
+        for app in applications
+        if app.status != ApplicationStatus.REJECTED
+    }
+    approved_count = sum(1 for app in applications if app.status == ApplicationStatus.APPROVED)
+    open_escalations = sum(1 for esc in escalations if esc.status == "OPEN")
+
+    citizen_district = {c.id: (c.district or "Unknown") for c in citizens}
+    buckets: dict = {}
+    for citizen in citizens:
+        district = citizen.district or "Unknown"
+        bucket = buckets.setdefault(district, {
+            "district": district,
+            "onboarded": 0,
+            "enrolled": 0,
+            "escalations": 0,
+        })
+        bucket["onboarded"] += 1
+        if citizen.id in active_ids:
+            bucket["enrolled"] += 1
+
+    for esc in escalations:
+        app = next((a for a in applications if a.id == esc.application_id), None)
+        if not app:
+            continue
+        district = citizen_district.get(app.citizen_id)
+        if district and district in buckets:
+            buckets[district]["escalations"] += 1
+
+    districts = []
+    for bucket in buckets.values():
+        bucket["rate"] = round(100.0 * bucket["enrolled"] / bucket["onboarded"], 1) if bucket["onboarded"] else 0
+        districts.append(bucket)
+    districts.sort(key=lambda row: row["onboarded"], reverse=True)
+
+    return {
+        "total_citizens": len(citizens),
+        "approved_applications": approved_count,
+        "open_escalations": open_escalations,
+        "total_applications": len(applications),
+        "districts": districts,
+    }

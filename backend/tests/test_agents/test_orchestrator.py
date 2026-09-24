@@ -15,3 +15,7 @@ def test_full_pipeline_execution():
     assert result["profile"]["name"] == "Savitri Devi"
     assert result["eligible_count"] > 0
     assert len(result["roadmap"]) > 0
+    assert result["recommendation_package"]["summary"]
+    assert result["recommendation_package"]["voice_briefing_script"]
+    assert len(result["roadmaps"]) == result["eligible_count"]
+    assert result["roadmaps"][0]["steps"]

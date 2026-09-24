@@ -45,9 +45,18 @@ class CounterfactualExplainabilityAgent:
                 actionable_steps.append("Visit ALIMCO assessment camp or District Civil Hospital for disability screening.")
 
         if not missing_criteria:
-            missing_criteria = unmatched_criteria if unmatched_criteria else ["None - Citizen is fully eligible!"]
-            qualifying_scenarios = ["Citizen currently satisfies all documented criteria."]
-            actionable_steps = ["Proceed to document verification and application submission."]
+            if unmatched_criteria:
+                missing_criteria = list(unmatched_criteria)
+                qualifying_scenarios = [
+                    "Demographic rules are met, but the listed documents or conditions are still open."
+                ]
+                actionable_steps = [
+                    "Collect the missing documents at the field kiosk and run verification again before submission."
+                ]
+            else:
+                missing_criteria = ["None - Citizen is fully eligible!"]
+                qualifying_scenarios = ["Citizen currently satisfies all documented criteria."]
+                actionable_steps = ["Proceed to document verification and application submission."]
 
         return CounterfactualExplanation(
             missing_criteria=missing_criteria,

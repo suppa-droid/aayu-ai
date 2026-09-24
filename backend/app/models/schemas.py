@@ -65,6 +65,7 @@ class ApplicationCreate(BaseModel):
 class ApplicationResponse(BaseModel):
     id: str
     citizen_id: str
+    citizen_name: Optional[str] = None
     scheme_id: str
     status: ApplicationStatus
     remarks: Optional[str] = None
