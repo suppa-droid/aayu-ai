@@ -10,6 +10,7 @@ from sqlalchemy import text
 from app.db.session import get_db
 from app.rules_engine.rule_loader import rule_loader
 from app.config import settings
+from app.core.llm import active_chat_models
 from app.models.db_models import DBCitizen, DBApplication, DBEscalation, DBReminder, DBUser, DBScheme
 from app.models.enums import ApplicationStatus
 
@@ -84,7 +85,7 @@ def get_pipeline_health(db: Session = Depends(get_db)):
             "status": "HEALTHY" if has_groq_key else "STANDBY",
             "role": "Counterfactual reasoning & missing condition actionable guidance",
             "latency_ms": 280,
-            "engine": f"Groq ({settings.GROQ_MODEL})"
+            "engine": f"Groq ({active_chat_models()[0]})"
         },
         {
             "id": "recommendation_agent",
@@ -92,7 +93,7 @@ def get_pipeline_health(db: Session = Depends(get_db)):
             "status": "HEALTHY" if has_groq_key else "STANDBY",
             "role": "Package synthesizer & local dialect audio brief generator",
             "latency_ms": 310,
-            "engine": f"Groq ({settings.GROQ_MODEL})"
+            "engine": f"Groq ({active_chat_models()[0]})"
         },
         {
             "id": "planning_agent",
@@ -100,7 +101,7 @@ def get_pipeline_health(db: Session = Depends(get_db)):
             "status": "HEALTHY" if has_groq_key else "STANDBY",
             "role": "Fulfillment roadmap, step checklist & dispute risk assessment",
             "latency_ms": 260,
-            "engine": f"Groq ({settings.GROQ_MODEL})"
+            "engine": f"Groq ({active_chat_models()[0]})"
         },
         {
             "id": "document_verification_agent",
@@ -161,7 +162,7 @@ def get_pipeline_health(db: Session = Depends(get_db)):
         },
         "llm_inference": {
             "provider": "Groq LPU Cloud",
-            "model": settings.GROQ_MODEL,
+            "model": active_chat_models()[0],
             "status": "ONLINE" if has_groq_key else "STANDBY (KEY_NOT_CONFIGURED)"
         },
         "rag_vector_store": {

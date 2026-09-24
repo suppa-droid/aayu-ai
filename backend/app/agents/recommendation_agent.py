@@ -1,9 +1,6 @@
-import logging
 from typing import Dict, Any, List
 from app.knowledge_graph.graph_queries import graph_query_engine
-from app.core.llm import get_llm
-
-logger = logging.getLogger(__name__)
+from app.core.llm import generate_text
 
 
 class RecommendationAgent:
@@ -34,8 +31,7 @@ class RecommendationAgent:
         sequence = graph_query_engine.generate_roadmap(eligible_schemes, age)
         copy = self._fallback_copy(citizen, eligible_schemes)
 
-        llm = get_llm(temperature=0.7)
-        if llm and eligible_schemes:
+        if eligible_schemes:
             prompt = f"""
             You are an AI assistant helping a Field Worker explain welfare benefits to a senior citizen in India.
             Citizen Name: {citizen.get('name')}
@@ -47,25 +43,9 @@ class RecommendationAgent:
 
             Write a short, friendly, personalized paragraph (max 2 sentences) summarizing their action plan. No bold markdown, just plain text.
             """
-            try:
-                response = await llm.ainvoke(prompt)
-                raw = response.content
-                if isinstance(raw, list):
-                    parts = []
-                    for block in raw:
-                        if isinstance(block, dict):
-                            parts.append(block.get("text", ""))
-                        else:
-                            parts.append(str(block))
-                    ai_summary = "".join(parts).strip()
-                else:
-                    ai_summary = str(raw).strip()
-                import re
-                ai_summary = re.sub(r"<think>.*?</think>", "", ai_summary, flags=re.DOTALL).strip()
-                if ai_summary:
-                    copy["summary"] = ai_summary
-            except Exception as e:
-                logger.warning(f"LLM recommendation summary failed: {e}")
+            ai_summary = await generate_text(prompt, temperature=0.7)
+            if ai_summary:
+                copy["summary"] = ai_summary
 
         return {
             "summary": copy["summary"],

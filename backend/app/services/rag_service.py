@@ -11,15 +11,11 @@ Flow:
   5. Groq (Llama-3.3-70b) generates an accurate, grounded answer.
 """
 
-import re
-import logging
 from pydantic import BaseModel
-from app.core.llm import get_llm
+from app.core.llm import generate_text
 
 # Import the singleton vector store (populated at startup via ingestion.py)
 from app.rag.vector_store import vector_store
-
-logger = logging.getLogger(__name__)
 
 
 class RAGRequest(BaseModel):
@@ -68,31 +64,18 @@ Instructions:
 - Keep the answer professional, empathetic, and under 4 sentences.
 """
 
-        # ── Step 4: Generate with Groq LLM ──
-        llm = get_llm(temperature=0.2)
-        if not llm:
-            return {"answer": "Error: LLM backend is currently unavailable.", "retrieved_chunks": len(retrieved)}
+        answer = await generate_text(prompt, temperature=0.2)
+        if not answer:
+            # The scheme text was already retrieved. Use it when Groq is down
+            # instead of telling the field worker the backend is unreachable.
+            excerpts = []
+            for chunk in retrieved[:2]:
+                text = (chunk.get("text") or "").strip()
+                if text:
+                    excerpts.append(text)
+            answer = "\n\n".join(excerpts)[:900] or "I could not find scheme details for that question."
 
-        try:
-            response = await llm.ainvoke(prompt)
-            raw = response.content
-            if isinstance(raw, list):
-                parts = [block.get("text", "") if isinstance(block, dict) else str(block) for block in raw]
-                answer = "".join(parts).strip()
-            else:
-                answer = str(raw).strip()
-
-            # Clean any model thinking tags
-            answer = re.sub(r"<think>.*?</think>", "", answer, flags=re.DOTALL).strip()
-
-            return {"answer": answer, "retrieved_chunks": len(retrieved)}
-
-        except Exception as e:
-            logger.error(f"RAG LLM error: {e}")
-            return {
-                "answer": "Sorry, I'm having trouble connecting to the Aayu AI backend right now. Please try again.",
-                "retrieved_chunks": len(retrieved)
-            }
+        return {"answer": answer, "retrieved_chunks": len(retrieved)}
 
 
 rag_service = RAGService()
