@@ -29,12 +29,13 @@ class PlanningAgent:
                 "message": "Senior citizen reached age 80! IGNOAPS pension rate upgrades from Rs. 500 to Rs. 800/month."
             })
 
-        # Milestone 3: Annual BPL/Income Certificate Renewal
-        triggers.append({
-            "type": "ANNUAL_RENEWAL_DUE",
-            "scheme_id": "IGNOAPS",
-            "message": "Annual BPL income re-verification due in 30 days."
-        })
+        # Milestone 3: Annual BPL/Income Certificate Renewal (pension households only)
+        if citizen.get("is_bpl", True) is not False:
+            triggers.append({
+                "type": "ANNUAL_RENEWAL_DUE",
+                "scheme_id": "IGNOAPS",
+                "message": "Annual BPL income re-verification due in 30 days."
+            })
 
         return triggers
 

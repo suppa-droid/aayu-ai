@@ -39,10 +39,14 @@ class CounterfactualExplainabilityAgent:
                 actionable_steps.append("Ensure e-KYC on Aadhaar is completed in advance.")
 
         elif scheme_id == "RVY":
+            if age < 60:
+                missing_criteria.append(f"Age is currently {age} years (Required: >= 60).")
+                qualifying_scenarios.append(f"Will qualify on age upon turning 60 (in {60 - age} years).")
+                actionable_steps.append("Keep age proof ready and return when the citizen turns 60.")
             if not is_bpl and income > 3000:
-                missing_criteria.append(f"Monthly income Rs. {income:,.2f} exceeds Rs. 3,000 threshold for non-BPL applicants.")
-                qualifying_scenarios.append("If medical officer certifies age-related disability or infirmity alongside BPL card.")
-                actionable_steps.append("Visit ALIMCO assessment camp or District Civil Hospital for disability screening.")
+                missing_criteria.append(f"Monthly income Rs. {income:,.2f} exceeds Rs. 3,000 and the household is not BPL.")
+                qualifying_scenarios.append("A BPL card, or a certified monthly income at or below Rs. 3,000, meets this rule.")
+                actionable_steps.append("Bring the BPL card, or an income certificate showing Rs. 3,000 or less.")
 
         if not missing_criteria:
             if unmatched_criteria:

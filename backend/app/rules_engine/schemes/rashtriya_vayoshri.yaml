@@ -3,7 +3,7 @@ name: "Rashtriya Vayoshri Yojana"
 sponsoring_agency: "ALIMCO & Ministry of Social Justice and Empowerment"
 category: "Assistive Devices & Mobility Support"
 min_age: 60
-requires_bpl: true
+requires_bpl: false
 required_documents:
   - "Aadhaar Card"
   - "BPL Certificate"
@@ -24,7 +24,5 @@ rules:
         operator: "<="
         value: 3000
         description: "Certified monthly income is at or below Rs. 3,000."
-prerequisites:
-  - "IGNOAPS"
 benefit_details:
   assisted_devices: "Free spectacles, hearing aids, wheelchairs, walking sticks, and knee braces."

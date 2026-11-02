@@ -41,7 +41,8 @@ export default function EligibilityResult({ evaluation, citizenId }: Eligibility
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
   
-  const isEligible = evaluation.status === 'ELIGIBLE' || evaluation.status === 'CONDITIONALLY_ELIGIBLE';
+  const canFile = evaluation.status === 'ELIGIBLE';
+  const isConditional = evaluation.status === 'CONDITIONALLY_ELIGIBLE';
 
   const handleSubmitApplication = async () => {
     setSubmitting(true);
@@ -75,7 +76,7 @@ export default function EligibilityResult({ evaluation, citizenId }: Eligibility
     <div 
       className="card animate-fade-in" 
       style={{ 
-        borderLeft: `5px solid ${isEligible ? '#10b981' : '#f43f5e'}`,
+        borderLeft: `5px solid ${canFile ? '#10b981' : isConditional ? '#f59e0b' : '#f43f5e'}`,
         marginBottom: '1.25rem'
       }}
     >
@@ -97,7 +98,7 @@ export default function EligibilityResult({ evaluation, citizenId }: Eligibility
       <div style={{ marginTop: '1rem', background: 'rgba(5, 8, 17, 0.6)', padding: '0.8rem 1rem', borderRadius: 'var(--radius-sm)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.4rem' }}>
           <span style={{ color: 'var(--text-secondary)' }}>Rule & Policy Match Score</span>
-          <strong style={{ color: isEligible ? '#34d399' : '#fb7185', fontFamily: 'JetBrains Mono' }}>
+          <strong style={{ color: canFile ? '#34d399' : isConditional ? '#fbbf24' : '#fb7185', fontFamily: 'JetBrains Mono' }}>
             {evaluation.score}%
           </strong>
         </div>
@@ -106,9 +107,11 @@ export default function EligibilityResult({ evaluation, citizenId }: Eligibility
             style={{ 
               height: '100%', 
               width: `${evaluation.score}%`, 
-              background: isEligible 
-                ? 'linear-gradient(90deg, #10b981, #06b6d4)' 
-                : 'linear-gradient(90deg, #f43f5e, #fb923c)',
+              background: canFile
+                ? 'linear-gradient(90deg, #10b981, #06b6d4)'
+                : isConditional
+                  ? 'linear-gradient(90deg, #f59e0b, #fbbf24)'
+                  : 'linear-gradient(90deg, #f43f5e, #fb923c)',
               borderRadius: '4px',
               transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)'
             }}
@@ -142,7 +145,7 @@ export default function EligibilityResult({ evaluation, citizenId }: Eligibility
       </div>
 
       {/* Counterfactual Explainability (Why Ineligible & Path to Qualify) */}
-      {!isEligible && (
+      {!canFile && (
         <div 
           style={{ 
             marginTop: '1.2rem', 
@@ -238,7 +241,7 @@ export default function EligibilityResult({ evaluation, citizenId }: Eligibility
         </div>
       )}
       {/* Submit Application Button for Eligible Schemes */}
-      {isEligible && (
+      {canFile && (
         <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <h4 style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>Official Application</h4>

@@ -13,8 +13,13 @@ from app.config import settings
 from app.core.llm import active_chat_models
 from app.models.db_models import DBCitizen, DBApplication, DBEscalation, DBReminder, DBUser, DBScheme
 from app.models.enums import ApplicationStatus
+from app.api.v1.auth import require_admin
 
-router = APIRouter(prefix="/admin/system", tags=["Level 3 System Admin"])
+router = APIRouter(
+    prefix="/admin/system",
+    tags=["Level 3 System Admin"],
+    dependencies=[Depends(require_admin)],
+)
 
 START_TIME = time.time()
 
@@ -60,73 +65,66 @@ def get_pipeline_health(db: Session = Depends(get_db)):
 
     # 4. LLM & Inference Engine Status
     has_groq_key = bool(settings.GROQ_API_KEY and len(settings.GROQ_API_KEY.strip()) > 5)
+    has_google_key = bool(settings.GOOGLE_API_KEY and len(settings.GOOGLE_API_KEY.strip()) > 5)
     
-    # 5. Pipeline Agent Nodes Status
+    # Seven agent modules live under app/agents. The orchestrator is the
+    # runner, not an eighth agent. Eligibility calls four of them in order.
+    pipeline_steps = [
+        "ProfilingAgent",
+        "EligibilityAgent",
+        "RecommendationAgent",
+        "PlanningAgent",
+    ]
     agents_status = [
         {
             "id": "profiling_agent",
             "name": "ProfilingAgent",
             "status": "HEALTHY",
-            "role": "Citizen profile aggregation & socio-economic normalizing",
-            "latency_ms": 120,
-            "engine": "In-Memory Data Pipeline"
+            "role": "Normalizes the citizen profile before the rules run",
+            "engine": "In-memory profile",
         },
         {
-            "id": "rule_verification_agent",
-            "name": "RuleVerificationAgent",
+            "id": "eligibility_agent",
+            "name": "EligibilityAgent",
             "status": "HEALTHY" if rules_count > 0 else "DEGRADED",
-            "role": f"Deterministic Python/YAML policy evaluator ({rules_count} loaded)",
-            "latency_ms": 15,
-            "engine": "AST Expression Engine"
+            "role": f"Runs the YAML rules for every loaded scheme ({rules_count} loaded)",
+            "engine": "Deterministic rules engine",
         },
         {
             "id": "explainability_agent",
             "name": "ExplainabilityAgent",
-            "status": "HEALTHY" if has_groq_key else "STANDBY",
-            "role": "Counterfactual reasoning & missing condition actionable guidance",
-            "latency_ms": 280,
-            "engine": f"Groq ({active_chat_models()[0]})"
+            "status": "HEALTHY",
+            "role": "Explains which rule failed and what would unlock the scheme",
+            "engine": "Deterministic counterfactuals",
         },
         {
             "id": "recommendation_agent",
             "name": "RecommendationAgent",
             "status": "HEALTHY" if has_groq_key else "STANDBY",
-            "role": "Package synthesizer & local dialect audio brief generator",
-            "latency_ms": 310,
-            "engine": f"Groq ({active_chat_models()[0]})"
+            "role": "Writes the spoken summary for schemes that fully qualify",
+            "engine": f"Groq ({active_chat_models()[0]}) with a local fallback",
         },
         {
             "id": "planning_agent",
             "name": "PlanningAgent",
-            "status": "HEALTHY" if has_groq_key else "STANDBY",
-            "role": "Fulfillment roadmap, step checklist & dispute risk assessment",
-            "latency_ms": 260,
-            "engine": f"Groq ({active_chat_models()[0]})"
+            "status": "HEALTHY",
+            "role": "Builds the filing steps and age-milestone reminders",
+            "engine": "Roadmap builder",
         },
         {
             "id": "document_verification_agent",
             "name": "DocumentVerificationAgent",
-            "status": "HEALTHY" if has_groq_key else "STANDBY",
-            "role": "Gemini vision OCR parser and fraud check",
-            "latency_ms": 420,
-            "engine": "Gemini 3.6 Flash"
+            "status": "HEALTHY" if has_google_key else "STANDBY",
+            "role": "Reads an uploaded document with Gemini and opens a district ticket when it fails",
+            "engine": "Gemini 3.6 Flash, then Gemini 3.5 Flash Lite",
         },
         {
             "id": "reminder_agent",
             "name": "ReminderAgent",
             "status": "HEALTHY",
-            "role": "Proactive lifecycle alerts (Age 60/80 milestone, certificate renewal)",
-            "latency_ms": 30,
-            "engine": "Scheduled Dispatcher"
+            "role": "Formats WhatsApp and voice reminders for a saved mobile number",
+            "engine": "Message formatter",
         },
-        {
-            "id": "orchestrator_state_machine",
-            "name": "OrchestratorStateMachine",
-            "status": "HEALTHY",
-            "role": "LangGraph multi-agent execution pipeline & state graph",
-            "latency_ms": 45,
-            "engine": "LangGraph Graph Executor"
-        }
     ]
 
     return {
@@ -171,6 +169,7 @@ def get_pipeline_health(db: Session = Depends(get_db)):
             "storage_path": settings.VECTOR_STORE_PATH
         },
         "active_agents": [agent["name"] for agent in agents_status],
+        "pipeline_steps": pipeline_steps,
         "agents_telemetry": agents_status
     }
 

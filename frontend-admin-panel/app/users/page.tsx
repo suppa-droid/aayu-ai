@@ -25,9 +25,11 @@ export default function UsersPage() {
   const fetchUsers = async () => {
     try {
       const res = await adminApi.get('/auth/users');
-      setUsers(res.data);
+      setUsers(Array.isArray(res.data) ? res.data : []);
+      setError('');
     } catch (err) {
       console.error('Failed to fetch users', err);
+      setError('User list could not be loaded. Confirm the backend is running on http://localhost:8000.');
     } finally {
       setIsLoading(false);
     }
@@ -65,14 +67,18 @@ export default function UsersPage() {
         });
       }, 1500);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to save user');
+      const detail = err.response?.data?.detail;
+      setError(typeof detail === 'string' ? detail : 'Failed to save user');
     }
   };
 
   const roleColors: Record<string, string> = {
     'FIELD_WORKER': '#10b981',
+    'LEVEL_1_FIELD_WORKER': '#10b981',
     'DISTRICT_ADMIN': '#38bdf8',
-    'SYSTEM_ADMIN': '#c084fc'
+    'LEVEL_2_DISTRICT_ADMIN': '#38bdf8',
+    'SYSTEM_ADMIN': '#c084fc',
+    'LEVEL_3_SYSTEM_ADMIN': '#c084fc',
   };
 
   return (
@@ -120,6 +126,12 @@ export default function UsersPage() {
           <tbody>
             {isLoading ? (
               <tr><td colSpan={4} style={{ padding: '2rem', textAlign: 'center' }}>Loading...</td></tr>
+            ) : users.length === 0 ? (
+              <tr>
+                <td colSpan={4} style={{ padding: '2rem', textAlign: 'center', color: error ? '#fda4af' : 'var(--text-secondary)' }}>
+                  {error || 'No users found.'}
+                </td>
+              </tr>
             ) : users.map(u => (
               <tr key={u.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                 <td style={{ padding: '1rem' }}>
@@ -143,11 +155,11 @@ export default function UsersPage() {
                     className="badge"
                     style={{ 
                       background: `rgba(${roleColors[u.role] === '#10b981' ? '16, 185, 129' : roleColors[u.role] === '#38bdf8' ? '56, 189, 248' : '192, 132, 252'}, 0.15)`,
-                      color: roleColors[u.role],
+                      color: roleColors[u.role] || '#94a3b8',
                       border: `1px solid ${roleColors[u.role]}40`
                     }}
                   >
-                    {u.role.replace('_', ' ')}
+                    {(u.role || '').replaceAll('_', ' ')}
                   </span>
                 </td>
                 <td style={{ padding: '1rem' }}>

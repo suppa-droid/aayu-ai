@@ -2,22 +2,30 @@ from fastapi import APIRouter, Request, Response
 
 router = APIRouter(prefix="/webhooks", tags=["Webhooks Integration"])
 
+def whatsapp_reply(body_text: str) -> str:
+    text = str(body_text or "").strip()
+    if text == "1":
+        return "Dhanyawad! Your Anganwadi home visit request has been scheduled for tomorrow at 10 AM."
+    if text == "2":
+        return "Required documents: 1. Aadhaar Card, 2. BPL Card, 3. Age Proof, 4. Bank Passbook."
+    return "Welcome to Aayu AI Assistant! Reply '1' to schedule a home visit, or '2' for scheme document checklist."
+
+
+def _twiml_message(message: str) -> str:
+    safe = (
+        message.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
+    return f"<Response><Message>{safe}</Message></Response>"
+
+
 @router.post("/whatsapp")
 async def whatsapp_webhook(request: Request):
     form_data = await request.form()
-    from_num = form_data.get("From", "")
     body_text = form_data.get("Body", "")
-
-    # Simulated WhatsApp conversational response
-    if "1" in body_text:
-        reply = "Dhanyawad! Your Anganwadi home visit request has been scheduled for tomorrow at 10 AM."
-    elif "2" in body_text:
-        reply = "Required documents: 1. Aadhaar Card, 2. BPL Card, 3. Age Proof, 4. Bank Passbook."
-    else:
-        reply = "Welcome to Aayu AI Assistant! Reply '1' to schedule a home visit, or '2' for scheme document checklist."
-        return Response(content=f"<Response><Message>{reply}</Message></Response>", media_type="application/xml")
-    
-    return Response(content="<Response></Response>", media_type="application/xml")
+    reply = whatsapp_reply(str(body_text or ""))
+    return Response(content=_twiml_message(reply), media_type="application/xml")
 
 @router.post("/voice")
 async def voice_webhook(request: Request):

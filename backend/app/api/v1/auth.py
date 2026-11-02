@@ -56,7 +56,7 @@ def login_access_token(db: Session = Depends(get_db), form_data: OAuth2PasswordR
 
 ADMIN_ROLES = {"DISTRICT_ADMIN", "SYSTEM_ADMIN", "LEVEL_2_DISTRICT_ADMIN", "LEVEL_3_SYSTEM_ADMIN"}
 
-def _require_admin(user: DBUser = Depends(get_current_user)) -> DBUser:
+def require_admin(user: DBUser = Depends(get_current_user)) -> DBUser:
     if user.role not in ADMIN_ROLES:
         raise HTTPException(status_code=403, detail="Admin access required.")
     return user
@@ -65,7 +65,7 @@ def _require_admin(user: DBUser = Depends(get_current_user)) -> DBUser:
 def register_user(
     user_in: UserCreate,
     db: Session = Depends(get_db),
-    _: DBUser = Depends(_require_admin),
+    _: DBUser = Depends(require_admin),
 ) -> Any:
     """
     Create a new user.
@@ -107,7 +107,7 @@ class UserUpdate(BaseModel):
     district: str = None
 
 @router.get("/users")
-def list_users(db: Session = Depends(get_db), _: DBUser = Depends(_require_admin)):
+def list_users(db: Session = Depends(get_db), _: DBUser = Depends(require_admin)):
     """
     List all registered users.
     """
@@ -125,7 +125,7 @@ def update_user(
     user_id: str,
     user_in: UserUpdate,
     db: Session = Depends(get_db),
-    _: DBUser = Depends(_require_admin),
+    _: DBUser = Depends(require_admin),
 ):
     """
     Update an existing user.

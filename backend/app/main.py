@@ -15,24 +15,38 @@ from app.api.v1.auth import router as auth_router
 from app.api.v1.rag_chat import router as rag_chat_router
 from contextlib import asynccontextmanager
 import logging
+import threading
 
 logger = logging.getLogger(__name__)
 
 # Initialize database tables
 init_db()
 
-@asynccontextmanager
-async def lifespan(app):
-    # ── Startup: Build FAISS RAG index (only if sentence-transformers is available) ──
+def _embed_rag_in_background():
     try:
         from app.rag.ingestion import seed_scheme_documents
-        logger.info("Starting Aayu AI RAG ingestion pipeline...")
-        seed_scheme_documents()
-        logger.info("RAG ingestion complete.")
+        logger.info("Building FAISS embeddings in the background...")
+        seed_scheme_documents(embed=True)
+        logger.info("RAG embeddings ready.")
     except Exception as e:
-        logger.warning(f"RAG ingestion skipped: {e}")
+        logger.warning("Background RAG embedding skipped: %s", e)
+
+@asynccontextmanager
+async def lifespan(app):
+    # Load YAML scheme text immediately so /ask works. Heavy sentence-transformers
+    # loading happens off the startup path so uvicorn can bind port 8000 at once.
+    try:
+        from app.rag.ingestion import seed_scheme_documents
+        logger.info("Loading scheme text for Ask Aayu...")
+        seed_scheme_documents(embed=False)
+        threading.Thread(
+            target=_embed_rag_in_background,
+            daemon=True,
+            name="rag-embed",
+        ).start()
+    except Exception as e:
+        logger.warning("RAG ingestion skipped: %s", e)
     yield
-    # ── Shutdown ──
 
 
 app = FastAPI(
@@ -42,10 +56,18 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Enable CORS for Next.js frontends
+# Enable CORS for local Next.js apps and the deployed Vercel hosts
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+        "https://aayuworker.vercel.app",
+        "https://aayuadmin.vercel.app",
+    ],
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -74,4 +96,10 @@ def root():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+        reload_dirs=["app"],
+    )

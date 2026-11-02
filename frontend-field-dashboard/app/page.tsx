@@ -29,7 +29,10 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterBplOnly, setFilterBplOnly] = useState(false);
+  const [registryError, setRegistryError] = useState('');
+  const [evalError, setEvalError] = useState('');
   const autoEvaluated = useRef<string | null>(null);
+  const evalRequest = useRef(0);
 
   useEffect(() => {
     fetchCitizens();
@@ -46,10 +49,12 @@ export default function Home() {
 
   const fetchCitizens = async () => {
     try {
-      const res = await apiClient.get('/citizens/');
+      const res = await apiClient.get('/citizens/', { params: { limit: 1000 } });
       setCitizens(res.data);
+      setRegistryError('');
     } catch (e) {
       console.error(e);
+      setRegistryError('The beneficiary list could not be loaded. Check the connection and sign in again.');
     }
   };
 
@@ -252,26 +257,31 @@ export default function Home() {
   };
 
   const handleEvaluate = async (citizenId: string) => {
+    const requestId = ++evalRequest.current;
     setLoading(true);
+    setEvalError('');
     setEvaluations([]);
     setRecommendation(null);
     setRoadmaps([]);
     const found = citizens.find((c) => c.id === citizenId);
     if (!found) {
-      setLoading(false);
+      if (requestId === evalRequest.current) setLoading(false);
       return;
     }
     setSelectedCitizen(found);
 
     try {
       const res = await apiClient.post(`/eligibility/evaluate-full/${citizenId}`);
+      if (requestId !== evalRequest.current) return;
       setEvaluations(res.data.evaluations || []);
       setRecommendation(res.data.recommendation_package || null);
       setRoadmaps(res.data.roadmaps || []);
     } catch (e) {
       console.error(e);
+      if (requestId !== evalRequest.current) return;
+      setEvalError('Eligibility could not be completed. The citizen is saved; run the check again when the API responds.');
     } finally {
-      setLoading(false);
+      if (requestId === evalRequest.current) setLoading(false);
     }
   };
 
@@ -286,7 +296,7 @@ export default function Home() {
 
   const totalCitizens = citizens.length;
   const bplCitizens = citizens.filter(c => c.is_bpl).length;
-  const eligibleCount = evaluations.filter(e => e.status === 'ELIGIBLE').length;
+  const eligibleCount = evaluations.filter(e => e.status === 'ELIGIBLE' || e.status === 'CONDITIONALLY_ELIGIBLE').length;
 
   return (
     <div className="animate-fade-in">
@@ -333,8 +343,10 @@ export default function Home() {
             <span style={{ fontSize: '0.88rem', fontWeight: 600 }}>Schemes Evaluated</span>
             <Sparkles size={18} color="#38bdf8" />
           </div>
-          <div className="stat-val" style={{ color: '#38bdf8' }}>{evaluations.length > 0 ? evaluations.length : '5 Active'}</div>
-          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>State & Central deterministic rules</p>
+          <div className="stat-val" style={{ color: '#38bdf8' }}>{evaluations.length}</div>
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+            {evaluations.length > 0 ? 'From the latest eligibility run' : 'Select a citizen to evaluate'}
+          </p>
         </div>
       </div>
 
@@ -378,7 +390,7 @@ export default function Home() {
             </div>
 
             <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
-              Showing {filteredCitizens.length} senior citizens. Click to run instant AI evaluation:
+              {registryError || `Showing ${filteredCitizens.length} senior citizens. Click to run instant AI evaluation:`}
             </p>
           </div>
 
@@ -450,7 +462,7 @@ export default function Home() {
                       <span>Download PDF</span>
                     </button>
                     <span className="badge badge-eligible">
-                      {eligibleCount} / {evaluations.length} Schemes Eligible
+                      {eligibleCount} / {evaluations.length} Schemes Matched
                     </span>
                   </div>
                 </div>
@@ -500,6 +512,13 @@ export default function Home() {
                   ))}
                 </div>
               )}
+            </div>
+          ) : evalError ? (
+            <div className="card" style={{ textAlign: 'center', padding: '3rem 2rem' }}>
+              <h3 style={{ fontSize: '1.25rem', color: '#fda4af' }}>Evaluation did not finish</h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', maxWidth: '420px', margin: '0.6rem auto 0' }}>
+                {evalError}
+              </p>
             </div>
           ) : (
             <div className="card" style={{ textAlign: 'center', padding: '4.5rem 2rem' }}>

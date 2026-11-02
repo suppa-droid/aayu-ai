@@ -5,6 +5,7 @@ import { ScrollText, ShieldCheck, Code, BookOpen, Layers } from 'lucide-react';
 
 export default function SchemeRulesPage() {
   const [rules, setRules] = useState<any[]>([]);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     fetchRules();
@@ -13,9 +14,11 @@ export default function SchemeRulesPage() {
   const fetchRules = async () => {
     try {
       const res = await adminApi.get('/admin/system/rules');
-      setRules(res.data);
+      setRules(Array.isArray(res.data) ? res.data : []);
+      setLoadError('');
     } catch (e) {
       console.error(e);
+      setLoadError('Scheme rules could not be loaded. Confirm the backend is running on http://localhost:8000.');
     }
   };
 
@@ -31,6 +34,14 @@ export default function SchemeRulesPage() {
         </p>
       </div>
 
+      {loadError && (
+        <div className="card" style={{ marginBottom: '1.25rem', color: '#fda4af' }}>{loadError}</div>
+      )}
+      {!loadError && rules.length === 0 && (
+        <div className="card" style={{ marginBottom: '1.25rem', color: 'var(--text-secondary)' }}>
+          No scheme rules are loaded yet.
+        </div>
+      )}
       <div className="grid-2">
         {rules.map((scheme) => (
           <div key={scheme.scheme_id} className="card" style={{ marginBottom: 0 }}>

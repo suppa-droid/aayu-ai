@@ -43,6 +43,28 @@ def test_rvy_accepts_income_or_bpl():
     })
     assert neither["status"] == "INELIGIBLE"
 
+def test_rvy_income_path_does_not_require_bpl_card():
+    res = rules_engine.evaluate_scheme("RVY", {
+        "age": 65,
+        "is_bpl": False,
+        "monthly_income": 2500,
+        "has_aadhaar": True,
+        "has_bpl_card": False,
+        "has_bank_account": True,
+    })
+    assert res["status"] == "ELIGIBLE"
+
+def test_rvy_bpl_without_card_is_conditional():
+    res = rules_engine.evaluate_scheme("RVY", {
+        "age": 65,
+        "is_bpl": True,
+        "monthly_income": 8000,
+        "has_aadhaar": True,
+        "has_bpl_card": False,
+        "has_bank_account": True,
+    })
+    assert res["status"] == "CONDITIONALLY_ELIGIBLE"
+
 def test_missing_aadhaar_is_conditional():
     citizen = {
         "age": 65,

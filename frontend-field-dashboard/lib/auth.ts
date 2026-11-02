@@ -1,6 +1,11 @@
-import { apiClient } from './api-client';
+import { apiClient, IS_LOCAL_API, LOGIN_TIMEOUT_MS } from './api-client';
+import { clearSessionCookie, setSessionCookie } from './session';
 
 const FIELD_ROLES = ['FIELD_WORKER', 'LEVEL_1_FIELD_WORKER'];
+
+const UNREACHABLE_MESSAGE = IS_LOCAL_API
+  ? 'The local API is not running. Start the backend on http://localhost:8000, then try again.'
+  : 'The cloud server is still starting. Wait about a minute and try again — this is normal after idle time.';
 
 export async function login(username: string, password: string = 'password123'): Promise<true | string> {
   try {
@@ -12,6 +17,7 @@ export async function login(username: string, password: string = 'password123'):
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
+      timeout: LOGIN_TIMEOUT_MS,
     });
 
     const data = response.data;
@@ -24,10 +30,14 @@ export async function login(username: string, password: string = 'password123'):
       name: data.user.full_name,
       username: data.user.username
     }));
+    setSessionCookie();
     window.location.href = '/';
     return true;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Login failed', error);
+    const detail = error?.response?.data?.detail;
+    if (typeof detail === 'string') return detail;
+    if (!error?.response) return UNREACHABLE_MESSAGE;
     return 'Invalid username or password.';
   }
 }
@@ -35,6 +45,7 @@ export async function login(username: string, password: string = 'password123'):
 export function logout() {
   localStorage.removeItem('vayosetu_user');
   localStorage.removeItem('vayosetu_token');
+  clearSessionCookie();
   window.location.href = '/login';
 }
 

@@ -36,6 +36,19 @@ def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.dot(a, b) / (norm_a * norm_b))
 
 
+# Cosine on normalized MiniLM vectors. Named scheme questions land around 0.3 and up.
+# Unrelated text stays near 0, so a floor stops top-k from filling in other schemes.
+MIN_SEMANTIC_SCORE = 0.25
+
+_KEYWORD_STOPWORDS = {
+    "the", "and", "for", "are", "you", "what", "how", "can", "this", "that",
+    "with", "from", "under", "about", "does", "have", "has", "was", "were",
+    "will", "your", "their", "them", "then", "than", "into", "over", "such",
+    "any", "all", "not", "but", "who", "why", "when", "where", "which",
+    "tell", "please", "could", "would", "should", "there", "here", "also",
+}
+
+
 def _yaml_to_text_chunks(scheme_data: dict) -> List[str]:
     """
     Convert a single YAML scheme definition into rich, human-readable
@@ -133,13 +146,14 @@ class FAISSVectorStore:
             self.embeddings.append(embedding)
         self._build_faiss_index()
 
-    def ingest_yaml_directory(self, schemes_dir: Path):
+    def ingest_yaml_directory(self, schemes_dir: Path, embed: bool = True):
         """
         Main ingestion pipeline: reads all YAML files in a directory,
         converts them to rich text chunks, embeds them, and builds the FAISS index.
-        """
-        model = _get_model()
 
+        embed=False loads scheme text only so the API can bind immediately.
+        Keyword search works until embeddings finish in the background.
+        """
         yaml_files = list(schemes_dir.glob("*.yaml")) + list(schemes_dir.glob("*.yml"))
         if not yaml_files:
             logger.warning(f"No YAML scheme files found in {schemes_dir}")
@@ -171,6 +185,13 @@ class FAISSVectorStore:
 
         self.chunks = all_chunks
         self.metadata = all_meta
+        if not embed:
+            logger.info(
+                f"Scheme text loaded ({len(self.chunks)} chunks). FAISS embeddings will follow in the background."
+            )
+            return
+
+        model = _get_model()
         if model is None:
             self.embeddings = []
             self._faiss_index = None
@@ -183,51 +204,73 @@ class FAISSVectorStore:
 
         self.embeddings = list(embeddings)
         self._build_faiss_index()
+        self._indexed = True
         logger.info(f"RAG Knowledge Base ready: {len(self.chunks)} chunks indexed.")
+
+    def _embeddings_ready(self) -> bool:
+        return bool(self.embeddings) and len(self.embeddings) == len(self.chunks)
+
+    def _keyword_search(self, query: str, top_k: int) -> List[Dict[str, Any]]:
+        """Overlap search used until FAISS embeddings exist, and for tests."""
+        import re
+        terms = [
+            t for t in re.findall(r"[a-z0-9]+", (query or "").lower())
+            if len(t) > 2 and t not in _KEYWORD_STOPWORDS
+        ]
+        if not terms:
+            return []
+        scored = []
+        for i, chunk in enumerate(self.chunks):
+            hay = chunk.lower()
+            score = sum(1 for term in terms if term in hay)
+            if score > 0:
+                scored.append((score, i))
+        scored.sort(reverse=True)
+        return [
+            {"text": self.chunks[idx], "score": float(score), **self.metadata[idx]}
+            for score, idx in scored[:top_k]
+        ]
 
     def search(self, query: str, top_k: int = 4) -> List[Dict[str, Any]]:
         """
         Semantically search the index and return the top-k most relevant chunks.
+        Chunks below the cosine floor are omitted so an unrelated question
+        does not come back with some other scheme's text.
         """
         if not self.chunks:
             return []
 
+        # Embeddings load on a background thread. Do not block the request
+        # on sentence-transformers, and do not run cosine against a short vector list.
+        if not self._embeddings_ready():
+            return self._keyword_search(query, top_k)
+
         model = _get_model()
         if model is None:
-            import re
-            terms = [t for t in re.findall(r"[a-z0-9]+", query.lower()) if len(t) > 2]
-            scored = []
-            for i, chunk in enumerate(self.chunks):
-                hay = chunk.lower()
-                scored.append((sum(1 for term in terms if term in hay), i))
-            scored.sort(reverse=True)
-            chosen = [idx for score, idx in scored if score > 0][:top_k]
-            if not chosen:
-                chosen = list(range(min(top_k, len(self.chunks))))
-            return [{"text": self.chunks[i], "score": 0.0, **self.metadata[i]} for i in chosen]
+            return self._keyword_search(query, top_k)
 
         query_embedding = model.encode(query, convert_to_numpy=True).astype(np.float32)
 
         results = []
 
-        if self._faiss_index is not None:
+        if self._faiss_index is not None and getattr(self._faiss_index, "ntotal", 0) == len(self.chunks):
             import faiss
             q = query_embedding.reshape(1, -1)
             faiss.normalize_L2(q)
             scores, indices = self._faiss_index.search(q, min(top_k, len(self.chunks)))
             for score, idx in zip(scores[0], indices[0]):
-                if idx >= 0:
+                if idx >= 0 and float(score) >= MIN_SEMANTIC_SCORE:
                     results.append({
                         "text": self.chunks[idx],
                         "score": float(score),
                         **self.metadata[idx]
                     })
         else:
-            # Numpy cosine fallback
             scored = []
             for i, emb in enumerate(self.embeddings):
                 score = _cosine_similarity(query_embedding, emb)
-                scored.append((score, i))
+                if score >= MIN_SEMANTIC_SCORE:
+                    scored.append((score, i))
             scored.sort(reverse=True)
             for score, idx in scored[:top_k]:
                 results.append({

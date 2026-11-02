@@ -17,6 +17,7 @@ import {
 export default function AdminDashboardPage() {
   const [health, setHealth] = useState<any>(null);
   const [escalations, setEscalations] = useState<any[]>([]);
+  const [queueState, setQueueState] = useState<'loading' | 'ready' | 'error'>('loading');
 
   useEffect(() => {
     fetchHealth();
@@ -35,9 +36,11 @@ export default function AdminDashboardPage() {
   const fetchEscalations = async () => {
     try {
       const res = await adminApi.get('/admin/district/escalations');
-      setEscalations(res.data);
+      setEscalations(Array.isArray(res.data) ? res.data : []);
+      setQueueState('ready');
     } catch (e) {
       console.error(e);
+      setQueueState('error');
     }
   };
 
@@ -74,7 +77,7 @@ export default function AdminDashboardPage() {
             <span style={{ fontSize: '0.86rem', fontWeight: 600 }}>Pending Escalations</span>
             <ShieldAlert size={18} color="#f59e0b" />
           </div>
-          <div className="stat-val" style={{ color: '#fbbf24' }}>{escalations.length}</div>
+          <div className="stat-val" style={{ color: '#fbbf24' }}>{queueState === 'ready' ? escalations.length : '—'}</div>
           <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>Level 2 District Queue</p>
         </div>
 
@@ -83,8 +86,10 @@ export default function AdminDashboardPage() {
             <span style={{ fontSize: '0.86rem', fontWeight: 600 }}>Active AI Agents</span>
             <Cpu size={18} color="#10b981" />
           </div>
-          <div className="stat-val" style={{ color: '#34d399' }}>{health?.active_agents?.length || 7}</div>
-          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>LangGraph State Machine</p>
+          <div className="stat-val" style={{ color: '#34d399' }}>{health ? (health.active_agents?.length ?? 0) : '—'}</div>
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+            {health?.pipeline_steps?.length ? `${health.pipeline_steps.length} of them run the eligibility pipeline` : 'Welfare agents'}
+          </p>
         </div>
 
         <div className="stat-card" style={{ borderLeftColor: '#8b5cf6' }}>
@@ -92,7 +97,7 @@ export default function AdminDashboardPage() {
             <span style={{ fontSize: '0.86rem', fontWeight: 600 }}>Scheme Rules Loaded</span>
             <ScrollText size={18} color="#8b5cf6" />
           </div>
-          <div className="stat-val" style={{ color: '#c084fc' }}>{health?.rules_loaded || 5}</div>
+          <div className="stat-val" style={{ color: '#c084fc' }}>{health ? (health.rules_engine?.rules_loaded ?? 0) : '—'}</div>
           <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>Deterministic YAML Specs</p>
         </div>
 
@@ -122,7 +127,11 @@ export default function AdminDashboardPage() {
           Disputed applications escalated from Anganwadi workers due to document OCR quality, name mismatches, or automated verification appeals:
         </p>
 
-        {escalations.length === 0 ? (
+        {queueState === 'loading' ? (
+          <p style={{ color: 'var(--text-secondary)' }}>Loading the district queue…</p>
+        ) : queueState === 'error' ? (
+          <p style={{ color: '#fda4af' }}>The escalation queue could not be loaded.</p>
+        ) : escalations.length === 0 ? (
           <div style={{ padding: '2.5rem', textAlign: 'center', background: 'rgba(16, 185, 129, 0.08)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(52, 211, 153, 0.25)' }}>
             <CheckCircle2 size={36} color="#34d399" style={{ margin: '0 auto 0.75rem' }} />
             <p style={{ color: '#34d399', fontWeight: 700, fontSize: '1.05rem' }}>All district escalations resolved!</p>
@@ -143,7 +152,7 @@ export default function AdminDashboardPage() {
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <strong style={{ fontSize: '1.05rem', color: 'var(--text-primary)' }}>
-                    Ticket #{esc.id.substring(0, 8)} — {esc.reason}
+                    Ticket #{esc.id.substring(0, 8)} — {(String(esc.description || '').match(/Citizen:\s*"([^"]+)"/)?.[1]) || 'Field check'} — {String(esc.reason || '').replaceAll('_', ' ')}
                   </strong>
                   <span className="badge badge-warning">{esc.status}</span>
                 </div>

@@ -11,6 +11,9 @@ class ReminderSchedulerService:
         db.refresh(db_rem)
         return db_rem
 
+    def get_reminder(self, db: Session, reminder_id: str):
+        return db.query(DBReminder).filter(DBReminder.id == reminder_id).first()
+
     def get_pending_reminders(self, db: Session) -> List[DBReminder]:
         return db.query(DBReminder).filter(DBReminder.is_sent == False).all()
 

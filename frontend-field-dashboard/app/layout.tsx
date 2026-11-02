@@ -1,15 +1,13 @@
 import './globals.css';
-import Navigation from '../components/Navigation';
-import PWARegistration from '../components/PWARegistration';
-import ChatAssistant from '../components/ChatAssistant';
+import AppChrome from '../components/AppChrome';
 import type { Viewport, Metadata } from 'next';
 
 export const viewport: Viewport = {
   themeColor: '#0d9488',
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5,
+  userScalable: true,
 };
 
 // Force Next.js HMR CSS rebuild
@@ -44,10 +42,7 @@ export default function RootLayout({
       </head>
 
       <body style={{ backgroundColor: '#050811', color: '#f8fafc', minHeight: '100vh' }}>
-        <Navigation />
-        <main className="container">{children}</main>
-        <PWARegistration />
-        <ChatAssistant />
+        <AppChrome>{children}</AppChrome>
       </body>
     </html>
   );

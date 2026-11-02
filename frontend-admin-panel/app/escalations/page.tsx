@@ -15,15 +15,18 @@ export default function EscalationsPage() {
   const [lastSynced, setLastSynced] = useState<Date>(new Date());
   const [statusFilter, setStatusFilter] = useState<'OPEN' | 'RESOLVED' | 'ALL'>('OPEN');
   const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [errorToast, setErrorToast] = useState<string | null>(null);
+  const fetchGen = useRef(0);
 
   const fetchEscalations = async (showLoading = false) => {
+    const gen = ++fetchGen.current;
     if (showLoading) setIsRefreshing(true);
     try {
       const res = await adminApi.get('/admin/district/escalations', {
         params: { status: statusFilter },
       });
+      if (gen !== fetchGen.current) return;
       if (Array.isArray(res.data)) {
-        // Sort newest first
         const sorted = [...res.data].sort((a, b) => {
           return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
         });
@@ -31,10 +34,13 @@ export default function EscalationsPage() {
       }
       setLastSynced(new Date());
     } catch (e) {
+      if (gen !== fetchGen.current) return;
       console.error('Failed to fetch escalations:', e);
     } finally {
-      setLoading(false);
-      setIsRefreshing(false);
+      if (gen === fetchGen.current) {
+        setLoading(false);
+        setIsRefreshing(false);
+      }
     }
   };
 
@@ -54,15 +60,18 @@ export default function EscalationsPage() {
   const handleResolve = async (id: string) => {
     setResolvingId(id);
     try {
-      const note = resolutionNotes[id] || 'Approved after District CSC manual document verification & affidavit check';
-      await adminApi.post(`/admin/district/escalations/${id}/resolve`, null, {
-        params: { resolution_notes: note },
+      const note = (resolutionNotes[id] || '').trim() || 'Resolved by district admin.';
+      await adminApi.post(`/admin/district/escalations/${id}/resolve`, {
+        resolution_notes: note,
       });
-      setSuccessToast(`Ticket #${id.substring(0, 8)} successfully resolved & cleared!`);
+      setErrorToast(null);
+      setSuccessToast(`Ticket #${id.substring(0, 8)} approved and cleared.`);
       setTimeout(() => setSuccessToast(null), 4000);
       await fetchEscalations(true);
-    } catch (e) {
-      console.error('Failed to resolve escalation:', e);
+    } catch (e: any) {
+      const detail = e?.response?.data?.detail;
+      setErrorToast(typeof detail === 'string' ? detail : 'Could not approve this ticket. It is still open.');
+      setTimeout(() => setErrorToast(null), 5000);
     } finally {
       setResolvingId(null);
     }
@@ -71,6 +80,26 @@ export default function EscalationsPage() {
   return (
     <div className="animate-fade-in">
       {/* Toast Notification */}
+      {errorToast && (
+        <div style={{
+          position: 'fixed',
+          top: '1.5rem',
+          right: '1.5rem',
+          zIndex: 9999,
+          background: 'rgba(244, 63, 94, 0.95)',
+          color: '#ffffff',
+          padding: '0.85rem 1.4rem',
+          borderRadius: '10px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.6rem',
+          fontWeight: 600,
+          fontSize: '0.92rem',
+        }}>
+          <AlertTriangle size={20} />
+          <span>{errorToast}</span>
+        </div>
+      )}
       {successToast && (
         <div style={{
           position: 'fixed',
@@ -158,6 +187,8 @@ export default function EscalationsPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
         {escalations.map((esc) => {
           const isResolved = esc.status === 'RESOLVED';
+          const citizenMatch = String(esc.description || '').match(/Citizen:\s*"([^"]+)"/);
+          const citizenLabel = citizenMatch?.[1] || 'Field document check';
           return (
             <div 
               key={esc.id} 
@@ -185,7 +216,7 @@ export default function EscalationsPage() {
 
                   <h3 style={{ fontSize: '1.25rem', margin: '0.15rem 0 0.4rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <AlertTriangle size={20} color={isResolved ? '#10b981' : '#f59e0b'} />
-                    <span>{esc.reason?.replace(/_/g, ' ')}</span>
+                    <span>{citizenLabel} — {String(esc.reason || '').replaceAll('_', ' ')}</span>
                   </h3>
 
                   <p style={{ color: '#e2e8f0', fontSize: '0.92rem', margin: '0.4rem 0 0 0', background: 'rgba(0,0,0,0.25)', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.06)' }}>
@@ -244,7 +275,7 @@ export default function EscalationsPage() {
                       style={{ padding: '0.65rem 1.3rem', display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: 600, fontSize: '0.88rem' }}
                     >
                       <CheckCircle2 size={17} />
-                      <span>{resolvingId === esc.id ? 'Resolving...' : '✓ Approve & Clear Escalation'}</span>
+                      <span>{resolvingId === esc.id ? 'Approving...' : 'Approve & clear'}</span>
                     </button>
                   </div>
                 </div>

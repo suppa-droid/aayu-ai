@@ -13,7 +13,7 @@ def register_citizen(citizen_in: CitizenCreate, db: Session = Depends(get_db)):
     return citizen_service.create_citizen(db, citizen_in)
 
 @router.get("/", response_model=List[CitizenResponse])
-def list_citizens(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def list_citizens(skip: int = 0, limit: int = 1000, db: Session = Depends(get_db)):
     return citizen_service.list_citizens(db, skip=skip, limit=limit)
 
 @router.get("/{citizen_id}", response_model=CitizenResponse)

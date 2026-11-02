@@ -87,8 +87,8 @@ export default function Navigation() {
           <div className="brand-title">Aayu AI</div>
           <div className="brand-subtitle">
             <span>Field Kiosk (PWA)</span>
-            <span style={{ opacity: 0.4 }}>•</span>
-            <span style={{ color: '#2dd4bf', fontWeight: 600 }}>{user.name}</span>
+            <span aria-hidden="true">•</span>
+            <span className="brand-person">{user.name}</span>
           </div>
         </div>
       </Link>
@@ -129,57 +129,35 @@ export default function Navigation() {
           <FileText size={17} />
           <span>Applications</span>
         </Link>
-        <Link 
-          href="/offline-sync" 
-          className={`nav-link ${pathname === '/offline-sync' ? 'active' : ''}`}
-          style={{
-            position: 'relative',
-            background: isOnline ? 'rgba(16, 185, 129, 0.08)' : 'rgba(245, 158, 11, 0.12)',
-            border: `1px solid ${isOnline ? 'rgba(52, 211, 153, 0.3)' : 'rgba(245, 158, 11, 0.4)'}`,
-            borderRadius: 'var(--radius-sm)'
-          }}
+        <Link
+          href="/offline-sync"
+          className={`nav-link ${isOnline ? 'is-live' : 'is-offline'} ${pathname === '/offline-sync' ? 'active' : ''}`}
         >
           {isOnline ? (
             <>
-              <Wifi size={16} color="#34d399" />
-              <span style={{ color: '#34d399', fontWeight: 600 }}>Live Cloud</span>
+              <Wifi size={16} color="#6ee7b7" />
+              <span>Live Cloud</span>
             </>
           ) : (
             <>
-              <WifiOff size={16} color="#fbbf24" />
-              <span style={{ color: '#fbbf24', fontWeight: 600 }}>Offline PWA</span>
+              <WifiOff size={16} color="#fde68a" />
+              <span>Offline PWA</span>
             </>
           )}
 
           {draftCount > 0 && (
-            <span 
-              style={{
-                marginLeft: '0.35rem',
-                background: '#f59e0b',
-                color: '#000',
-                fontWeight: 700,
-                fontSize: '0.72rem',
-                borderRadius: '10px',
-                padding: '1px 6px',
-                lineHeight: '1.2'
-              }}
+            <span
+              className="nav-draft-count"
               title={`${draftCount} records queued in IndexedDB`}
             >
               {draftCount}
             </span>
           )}
         </Link>
-        
-        <button 
-          onClick={logout} 
-          className="btn btn-secondary" 
-          style={{ 
-            marginLeft: '0.8rem', 
-            padding: '0.45rem 0.85rem', 
-            fontSize: '0.88rem', 
-            color: '#fb7185',
-            borderColor: 'rgba(244, 63, 94, 0.25)' 
-          }}
+
+        <button
+          onClick={logout}
+          className="btn btn-secondary btn-exit"
           title="Logout"
         >
           <LogOut size={16} />

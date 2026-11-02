@@ -5,6 +5,7 @@ import { FileText, CheckCircle2, Clock, AlertCircle, ShieldAlert, ArrowUpRight }
 
 export default function ApplicationsPage() {
   const [apps, setApps] = useState<any[]>([]);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     fetchApplications();
@@ -14,8 +15,10 @@ export default function ApplicationsPage() {
     try {
       const res = await apiClient.get('/applications/');
       setApps(res.data);
+      setLoadError('');
     } catch (e) {
       console.error(e);
+      setLoadError('Applications could not be loaded. Confirm the backend is running on http://localhost:8000.');
     }
   };
 
@@ -71,9 +74,11 @@ export default function ApplicationsPage() {
           >
             <FileText size={28} />
           </div>
-          <h3 style={{ fontSize: '1.2rem', color: 'var(--text-primary)' }}>No active applications submitted yet</h3>
+          <h3 style={{ fontSize: '1.2rem', color: loadError ? '#fda4af' : 'var(--text-primary)' }}>
+            {loadError ? 'Applications could not be loaded' : 'No active applications submitted yet'}
+          </h3>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', maxWidth: '380px', margin: '0.4rem auto 0' }}>
-            Run an AI evaluation from the dashboard to submit applications directly on behalf of senior citizens.
+            {loadError || 'Run an AI evaluation from the dashboard to submit applications directly on behalf of senior citizens.'}
           </p>
         </div>
       ) : (

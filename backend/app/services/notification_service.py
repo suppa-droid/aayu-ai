@@ -23,10 +23,12 @@ class NotificationService:
                 )
                 if res.status_code == 200:
                     logger.info(f"[WHATSAPP DISPATCHED] To {recipient}")
-                else:
-                    logger.error(f"[WHATSAPP FAILED] Error: {res.text}")
+                    return True
+                logger.error(f"[WHATSAPP FAILED] Error: {res.text}")
+                return False
             except Exception as e:
                 logger.error(f"[WHATSAPP SERVICE UNREACHABLE] Fallback log - To {recipient}: {message} | Err: {str(e)}")
+                return False
         elif channel == NotificationChannel.VOICE_IVR:
             logger.info(f"[SIMULATED VOICE IVR CALL] Dialing {recipient}: Speech Prompt -> '{message}'")
         else:

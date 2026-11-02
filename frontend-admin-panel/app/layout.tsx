@@ -1,6 +1,5 @@
 import './globals.css';
-import Link from 'next/link';
-import Navigation from '../components/Navigation';
+import AppChrome from '../components/AppChrome';
 
 export const metadata = {
   title: 'Aayu AI - District & System Admin Governance Panel',
@@ -15,8 +14,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <Navigation />
-        <main className="container">{children}</main>
+        <AppChrome>{children}</AppChrome>
       </body>
     </html>
   );

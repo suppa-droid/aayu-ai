@@ -6,7 +6,7 @@ cd backend
 python -m venv venv
 # Windows: venv\Scripts\activate | Linux: source venv/bin/activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+.\venv\Scripts\python.exe run_local.py
 ```
 
 ## 2. Test Suite Execution
@@ -19,7 +19,7 @@ pytest
 ```bash
 cd frontend-field-dashboard
 npm install
-npm run dev -- -p 3000
+npm run dev
 ```
 Visit http://localhost:3000
 
@@ -27,7 +27,7 @@ Visit http://localhost:3000
 ```bash
 cd frontend-admin-panel
 npm install
-npm run dev -- -p 3001
+npm run dev
 ```
 Visit http://localhost:3001
 

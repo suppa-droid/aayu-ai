@@ -70,8 +70,10 @@ export default function OfflineSyncPage() {
       const res = await OfflineDB.syncAllDrafts();
       await loadLocalData();
 
-      if (res.syncedCount > 0) {
+      if (res.syncedCount > 0 && res.failedCount === 0) {
         setStatusMsg(`✓ Successfully synchronized ${res.syncedCount} citizen records to central Aayu AI database!`);
+      } else if (res.syncedCount > 0) {
+        setStatusMsg(`⚠️ Synchronized ${res.syncedCount} records. ${res.failedCount} could not be uploaded.`);
       } else if (res.failedCount > 0) {
         setStatusMsg(`⚠️ Synchronization encountered issues with ${res.failedCount} records.`);
       }
@@ -86,45 +88,73 @@ export default function OfflineSyncPage() {
     setIsCachingSchemes(true);
     setStatusMsg('');
     try {
-      // Fetch available schemes from backend or populate representative offline catalogue
-      const defaultSchemes: CachedScheme[] = [
+      const fallback: CachedScheme[] = [
         {
           id: 'IGNOAPS',
-          name: 'Indira Gandhi National Old Age Pension Scheme (IGNOAPS)',
-          category: 'Social Pension',
-          benefits: '₹500 - ₹1000 monthly direct bank transfer',
-          eligibility_criteria: { min_age: 60, bpl_required: true },
+          name: 'Indira Gandhi National Old Age Pension Scheme',
+          category: 'Social Security & Pension',
+          benefits: 'Rs. 500/month from age 60, Rs. 800/month from age 80',
+          eligibility_criteria: { min_age: 60, bpl_required: true, max_income: 2500 },
           cached_at: new Date().toISOString()
         },
         {
-          id: 'AB_PMJAY_SR',
-          name: 'Ayushman Bharat PMJAY Universal Senior Citizen Cover',
-          category: 'Healthcare',
-          benefits: '₹5,00,000 annual cashless hospitalization coverage',
+          id: 'AB_PMJAY_70',
+          name: 'Ayushman Bharat PM-JAY Senior Citizen Coverage',
+          category: 'Universal Health Insurance',
+          benefits: 'Rs. 5,00,000 per family per year',
           eligibility_criteria: { min_age: 70, universal: true },
           cached_at: new Date().toISOString()
         },
         {
           id: 'RVY',
-          name: 'Rashtriya Vayoshri Yojana (RVY)',
-          category: 'Assistive Devices',
-          benefits: 'Free spectacles, wheelchairs, hearing aids, dentures',
-          eligibility_criteria: { min_age: 60, bpl_or_low_income: true },
+          name: 'Rashtriya Vayoshri Yojana',
+          category: 'Assistive Devices & Mobility Support',
+          benefits: 'Free spectacles, hearing aids, wheelchairs, walking sticks, and knee braces',
+          eligibility_criteria: { min_age: 60, bpl_or_income_at_or_below: 3000 },
           cached_at: new Date().toISOString()
         },
         {
-          id: 'VARISHTHA_MED',
-          name: 'Varishtha Mediclaim for Senior Citizens',
-          category: 'Medical Insurance',
-          benefits: 'Critical illness & hospitalization cover for 60-80 years',
-          eligibility_criteria: { min_age: 60, max_age: 80 },
+          id: 'AVYAY',
+          name: 'Atal Vayo Abhyuday Yojana',
+          category: 'Elderly Care & Shelter Support',
+          benefits: 'Shelter, healthcare, and nutrition in senior citizen homes',
+          eligibility_criteria: { min_age: 60 },
+          cached_at: new Date().toISOString()
+        },
+        {
+          id: 'SACRED',
+          name: 'Senior Able Citizens for Re-Employment in Dignity',
+          category: 'Employment & Dignified Livelihood',
+          benefits: 'Matching with organisations that need experienced senior workers',
+          eligibility_criteria: { min_age: 60 },
           cached_at: new Date().toISOString()
         }
       ];
 
-      await OfflineDB.cacheSchemes(defaultSchemes);
+      let schemes = fallback;
+      try {
+        const res = await apiClient.get('/schemes/');
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          schemes = res.data.map((scheme: any) => {
+            const benefits = scheme.benefit_details || {};
+            const benefitText = Object.values(benefits).map(String).join(' · ');
+            return {
+              id: scheme.scheme_id,
+              name: scheme.name,
+              category: scheme.category || '',
+              benefits: benefitText || scheme.name,
+              eligibility_criteria: { min_age: scheme.min_age, rules: scheme.rules || [] },
+              cached_at: new Date().toISOString()
+            };
+          });
+        }
+      } catch (fetchErr) {
+        console.warn('Scheme API unavailable, caching the built-in catalogue', fetchErr);
+      }
+
+      await OfflineDB.cacheSchemes(schemes);
       await loadLocalData();
-      setStatusMsg(`✓ Pre-cached ${defaultSchemes.length} core welfare schemes into device IndexedDB storage.`);
+      setStatusMsg(`✓ Pre-cached ${schemes.length} welfare schemes into device IndexedDB storage.`);
     } catch (e) {
       console.error('Failed to precache schemes', e);
       setStatusMsg('Failed to pre-cache schemes.');
@@ -210,9 +240,9 @@ export default function OfflineSyncPage() {
             marginBottom: '1.5rem', 
             padding: '1rem 1.25rem', 
             borderRadius: 'var(--radius-sm)', 
-            background: 'rgba(16, 185, 129, 0.15)', 
-            border: '1px solid rgba(52, 211, 153, 0.35)', 
-            color: '#34d399',
+            background: /fail|⚠|issue/i.test(statusMsg) ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)', 
+            border: /fail|⚠|issue/i.test(statusMsg) ? '1px solid rgba(245, 158, 11, 0.45)' : '1px solid rgba(52, 211, 153, 0.35)', 
+            color: /fail|⚠|issue/i.test(statusMsg) ? '#fbbf24' : '#34d399',
             fontWeight: 600,
             display: 'flex',
             alignItems: 'center',
@@ -231,7 +261,7 @@ export default function OfflineSyncPage() {
             <Database size={18} />
             <span style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>IndexedDB Storage</span>
           </div>
-          <div style={{ fontSize: '1.6rem', fontWeight: 700 }}>aayu_ai_field_db</div>
+          <div style={{ fontSize: '1.6rem', fontWeight: 700 }}>vayosetu_field_db</div>
           <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>Version 1.0 (Persistent)</div>
         </div>
 

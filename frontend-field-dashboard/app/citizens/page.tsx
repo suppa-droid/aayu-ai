@@ -11,6 +11,7 @@ export default function CitizensListPage() {
   const [citizens, setCitizens] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('ALL');
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     fetchCitizens();
@@ -18,10 +19,12 @@ export default function CitizensListPage() {
 
   const fetchCitizens = async () => {
     try {
-      const res = await apiClient.get('/citizens/');
+      const res = await apiClient.get('/citizens/', { params: { limit: 1000 } });
       setCitizens(res.data);
+      setLoadError('');
     } catch (e) {
       console.error(e);
+      setLoadError('The beneficiary list could not be loaded. Start the backend on http://localhost:8000 and sign in again.');
     }
   };
 
@@ -107,7 +110,9 @@ export default function CitizensListPage() {
 
       {filtered.length === 0 && (
         <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
-          <p style={{ color: 'var(--text-secondary)' }}>No senior citizens found matching the search criteria.</p>
+          <p style={{ color: loadError ? '#fda4af' : 'var(--text-secondary)' }}>
+            {loadError || 'No senior citizens found matching the search criteria.'}
+          </p>
         </div>
       )}
     </div>

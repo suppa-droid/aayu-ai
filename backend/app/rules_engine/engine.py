@@ -48,16 +48,28 @@ class DeterministicRulesEngine:
         reason = f"[{'PASSED' if matched else 'FAILED'}] {description} (Actual: {field}={citizen_val})"
         return matched, reason
 
+    def _flag(self, citizen: Dict[str, Any], key: str, default: bool = True) -> bool:
+        """Missing or null credentials keep the schema default instead of becoming False."""
+        if key not in citizen or citizen.get(key) is None:
+            return default
+        return bool(citizen.get(key))
+
     def _missing_documents(self, scheme: Dict[str, Any], citizen: Dict[str, Any]) -> List[str]:
-        """Demographic rules can pass while a required credential is still absent."""
+        """Demographic rules can pass while a required credential is still absent.
+
+        A BPL certificate is required only when the citizen is actually BPL.
+        Schemes such as Rashtriya Vayoshri also accept an income ceiling, so a
+        non-BPL applicant who already passed that rule is not held back for a
+        card they do not need.
+        """
         gaps = []
         for doc in scheme.get("required_documents") or []:
             label = str(doc).lower()
-            if "aadhaar" in label and citizen.get("has_aadhaar", True) is False:
+            if "aadhaar" in label and not self._flag(citizen, "has_aadhaar"):
                 gaps.append(f"Missing document: {doc}")
-            elif "bpl" in label and citizen.get("has_bpl_card", True) is False:
+            elif "bpl" in label and self._flag(citizen, "is_bpl") and not self._flag(citizen, "has_bpl_card"):
                 gaps.append(f"Missing document: {doc}")
-            elif "bank" in label and citizen.get("has_bank_account", True) is False:
+            elif "bank" in label and not self._flag(citizen, "has_bank_account"):
                 gaps.append(f"Missing document: {doc}")
         return gaps
 

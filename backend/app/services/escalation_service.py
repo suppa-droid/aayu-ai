@@ -39,16 +39,21 @@ class EscalationService:
             query = query.filter(DBEscalation.status == status)
         return query.order_by(DBEscalation.created_at.desc()).all()
 
-    def resolve_escalation(self, db: Session, escalation_id: str, resolution_notes: str) -> DBEscalation:
+    def resolve_escalation(self, db: Session, escalation_id: str, resolution_notes: str) -> Optional[DBEscalation]:
         esc = db.query(DBEscalation).filter(DBEscalation.id == escalation_id).first()
-        if esc:
-            esc.status = "RESOLVED"
-            esc.suggested_ai_resolution = f"Resolved by District Admin: {resolution_notes}"
-            app = db.query(DBApplication).filter(DBApplication.id == esc.application_id).first()
-            if app and app.status == ApplicationStatus.ESCALATED_DISTRICT:
+        if not esc:
+            return None
+        note = (resolution_notes or "").strip() or "Resolved by district admin."
+        esc.status = "RESOLVED"
+        esc.suggested_ai_resolution = f"Resolved by District Admin: {note}"
+        app = db.query(DBApplication).filter(DBApplication.id == esc.application_id).first()
+        if app:
+            current = app.status.value if hasattr(app.status, "value") else str(app.status or "")
+            if current == ApplicationStatus.ESCALATED_DISTRICT.value:
                 app.status = ApplicationStatus.DOCUMENT_VERIFIED
-            db.commit()
-            db.refresh(esc)
+            app.remarks = note
+        db.commit()
+        db.refresh(esc)
         return esc
 
 escalation_service = EscalationService()

@@ -27,6 +27,7 @@ const PIPELINE = [
 export default function ApplicationsKanban() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     fetchApplications();
@@ -35,9 +36,11 @@ export default function ApplicationsKanban() {
   const fetchApplications = async () => {
     try {
       const res = await apiClient.get('/applications/');
-      setApplications(res.data);
+      setApplications(Array.isArray(res.data) ? res.data : []);
+      setLoadError('');
     } catch (e) {
       console.error('Failed to fetch applications:', e);
+      setLoadError('Applications could not be loaded. Confirm the backend is running on http://localhost:8000.');
     } finally {
       setLoading(false);
     }
@@ -96,6 +99,9 @@ export default function ApplicationsKanban() {
         </p>
       </div>
 
+      {loadError && (
+        <p style={{ color: '#fda4af', marginBottom: '1rem' }}>{loadError}</p>
+      )}
       {loading ? (
         <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-secondary)' }}>Loading applications...</div>
       ) : (

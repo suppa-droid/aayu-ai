@@ -130,20 +130,28 @@ app.post('/api/notify/action-required', async (req, res) => {
   res.json({ success: true, message: 'Action required notification dispatched.' });
 });
 
+function escapeXml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 // Original Webhook for inbound messages (Twilio Sandbox)
 app.post('/webhook/whatsapp', (req, res) => {
-  const bodyText = req.body.Body || '';
+  const bodyText = String(req.body.Body || '').trim();
   let reply = 'Welcome to VayoSetu Senior Welfare Assistant! 👴👵\n\nOptions:\n1. Check Pension Application Status\n2. Schedule Anganwadi Home Visit\n3. View Eligible Schemes for Senior Relatives';
   
-  if (bodyText.includes('1')) {
+  if (bodyText === '1') {
     reply = '📌 Application #APP-9821 for IGNOAPS Pension is currently under Level 2 District Verification. Approval expected within 3 days.';
-  } else if (bodyText.includes('2')) {
+  } else if (bodyText === '2') {
     reply = '✅ Anganwadi Worker Sunita Devi has been scheduled for a home visit on Saturday at 10:30 AM.';
-  } else if (bodyText.includes('3')) {
+  } else if (bodyText === '3') {
     reply = '✨ Unlocked Schemes for Ramesh Kumar (Age 68):\n1. IGNOAPS Pension (Rs. 500/mo)\n2. Rashtriya Vayoshri (Free Spectacles/Assistive Devices)';
   }
 
-  res.send(`<Response><Message>${reply}</Message></Response>`);
+  res.type('text/xml');
+  res.send(`<Response><Message>${escapeXml(reply)}</Message></Response>`);
 });
 
 app.listen(PORT, () => {

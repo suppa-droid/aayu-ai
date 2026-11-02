@@ -24,12 +24,20 @@ def _norm_tokens(value: str) -> List[str]:
 
 
 def names_match(profile_name: str, extracted_name: str) -> bool:
-    """Fuzzy match that ignores case, punctuation, and extra middle names."""
+    """Fuzzy match that ignores case, punctuation, and extra middle names.
+
+    A single shared token such as a surname is not enough. "Kumar" must not
+    pass for "Ramesh Kumar".
+    """
     profile = _norm_tokens(profile_name)
     extracted = _norm_tokens(extracted_name)
     if not profile or not extracted:
         return False
-    return set(profile).issubset(set(extracted)) or set(extracted).issubset(set(profile))
+    profile_set = set(profile)
+    extracted_set = set(extracted)
+    if min(len(profile_set), len(extracted_set)) < 2:
+        return profile_set == extracted_set
+    return profile_set.issubset(extracted_set) or extracted_set.issubset(profile_set)
 
 
 class DocumentVerificationAgent:
@@ -51,7 +59,7 @@ class DocumentVerificationAgent:
         """Deterministic results for the three labelled demo samples only."""
         fn = (file_name or "").lower()
 
-        if "blur" in fn or "low" in fn:
+        if "blurry_image" in fn:
             return {
                 "is_valid": False,
                 "status": "FLAGGED_QUALITY",
@@ -63,7 +71,7 @@ class DocumentVerificationAgent:
                 "source": "demo",
             }
 
-        if "mismatch" in fn or "wrong" in fn or "other" in fn:
+        if "name_mismatch" in fn:
             fake_name = "Suresh Kumar" if "ramesh" in citizen_name.lower() else "Anil Sharma"
             return {
                 "is_valid": False,
@@ -76,7 +84,7 @@ class DocumentVerificationAgent:
                 "source": "demo",
             }
 
-        if "matching" in fn:
+        if "matching_aadhaar" in fn:
             doc_number = "4729-1038-9921" if "aadhaar" in document_type.lower() else "RC-MH-2024-00142"
             return {
                 "is_valid": True,
@@ -89,11 +97,14 @@ class DocumentVerificationAgent:
                 "source": "demo",
             }
 
-        # A real upload must not be auto-approved when vision is down.
+        return self._vision_unavailable(document_type, image_bytes)
+
+    def _vision_unavailable(self, document_type: str, image_bytes: bytes = b"") -> Dict[str, Any]:
+        """A real upload must not be auto-approved when vision is down."""
         return {
             "is_valid": False,
             "status": "VISION_AI_UNAVAILABLE",
-            "issue": "Gemini Vision could not read this image, so it was not auto-approved.",
+            "issue": f"Gemini Vision could not read this {document_type}, so it was not auto-approved.",
             "escalate_level": 2,
             "action": "Escalated for manual district review. Retry the scan when vision responds.",
             "extracted_name": "N/A",
@@ -170,22 +181,29 @@ class DocumentVerificationAgent:
         )
         last_error = None
         for model in VISION_MODELS:
-            try:
-                response = client.models.generate_content(
-                    model=model,
-                    contents=[prompt, image_part],
-                    config=config,
-                )
-                raw = (getattr(response, "text", None) or "").strip()
-                if not raw:
-                    raise ValueError("empty vision response")
-                return {"model": model, "data": json.loads(raw)}
-            except Exception as exc:
-                last_error = exc
-                message = str(exc)
-                logger.warning("Gemini model %s failed: %s", model, message[:240])
-                # Auth and quota failures will not be fixed by another model name.
-                if any(token in message for token in ("API_KEY_INVALID", "401", "403", "429", "RESOURCE_EXHAUSTED")):
+            for attempt in range(2):
+                try:
+                    response = client.models.generate_content(
+                        model=model,
+                        contents=[prompt, image_part],
+                        config=config,
+                    )
+                    raw = (getattr(response, "text", None) or "").strip()
+                    if not raw:
+                        raise ValueError("empty vision response")
+                    return {"model": model, "data": json.loads(raw)}
+                except Exception as exc:
+                    last_error = exc
+                    message = str(exc)
+                    logger.warning("Gemini model %s failed: %s", model, message[:240])
+                    temporary = any(token in message for token in ("503", "UNAVAILABLE", "high demand"))
+                    if temporary and attempt == 0:
+                        import time
+                        time.sleep(1.5)
+                        continue
+                    # Auth and quota failures will not be fixed by another model name.
+                    if any(token in message for token in ("API_KEY_INVALID", "401", "403", "429", "RESOURCE_EXHAUSTED")):
+                        return None
                     break
         if last_error:
             logger.error("Gemini vision unavailable: %s", str(last_error)[:300])
@@ -218,7 +236,7 @@ class DocumentVerificationAgent:
         api_key = self.GOOGLE_API_KEY
         if not api_key:
             logger.warning("GOOGLE_API_KEY not set — refusing to auto-approve.")
-            return self._smart_simulation(document_type, citizen_name, file_name, image_data)
+            return self._vision_unavailable(document_type, image_data)
 
         mime_type = (
             file.content_type
@@ -246,7 +264,7 @@ Rules:
         import asyncio
         parsed = await asyncio.to_thread(self._call_gemini, api_key, prompt, image_data, mime_type)
         if not parsed:
-            return self._smart_simulation(document_type, citizen_name, file_name, image_data)
+            return self._vision_unavailable(document_type, image_data)
         return self._interpret(parsed["data"], document_type, citizen_name, parsed["model"])
 
 

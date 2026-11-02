@@ -1,12 +1,14 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { login } from '../../lib/auth';
+import { wakeApiServer } from '../../lib/api-client';
 import { ShieldCheck, UserCheck, Sparkles, ArrowRight, ShieldAlert } from 'lucide-react';
 
 export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   
   // CAPTCHA State
   const [captchaString, setCaptchaString] = useState('');
@@ -24,6 +26,7 @@ export default function Login() {
 
   useEffect(() => {
     generateCaptcha();
+    wakeApiServer();
     if (new URLSearchParams(window.location.search).get('expired') === '1') {
       setError('Your session expired. Sign in again, then register the citizen.');
     }
@@ -31,7 +34,7 @@ export default function Login() {
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
-    if (!username || !password || !captchaAnswer) return;
+    if (!username || !password || !captchaAnswer || loading) return;
     
     if (captchaAnswer.toUpperCase() !== captchaString) {
       setError('Invalid CAPTCHA string. Please type exactly what you see.');
@@ -40,42 +43,30 @@ export default function Login() {
     }
     
     setError('');
-    
+    setLoading(true);
     const result = await login(username, password);
     if (result !== true) {
       setError(result);
       generateCaptcha();
+      setLoading(false);
     }
   };
 
   return (
-    <div className="container animate-fade-in" style={{ maxWidth: '520px', marginTop: '6vh' }}>
-      <div className="card" style={{ padding: '2.5rem 2rem' }}>
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div 
-            style={{ 
-              width: '64px', 
-              height: '64px', 
-              borderRadius: '16px', 
-              background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              margin: '0 auto 1rem',
-              boxShadow: '0 8px 24px var(--primary-glow)',
-              fontSize: '2rem'
-            }}
-          >
+    <div className="container login-frame animate-fade-in">
+      <div className="card login-card">
+        <div className="login-brand">
+          <div className="login-mark">
             <ShieldCheck size={32} color="#ffffff" />
           </div>
-          <h1 style={{ fontSize: '1.8rem', letterSpacing: '-0.03em' }}>Aayu AI Field Portal</h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', marginTop: '0.35rem' }}>
+          <h1>Aayu AI Field Portal</h1>
+          <p className="login-lead">
             Multi-Agent Welfare Eligibility Kiosk for Senior Citizens
           </p>
         </div>
 
         {error && (
-          <div style={{ padding: '1rem', background: '#fef2f2', color: '#b91c1c', borderRadius: '8px', marginBottom: '1.5rem', fontSize: '0.9rem', textAlign: 'center' }}>
+          <div className="alert-error" role="alert">
             {error}
           </div>
         )}
@@ -106,46 +97,34 @@ export default function Login() {
           </div>
 
           {/* CAPTCHA Field */}
-          <div className="form-group" style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-subtle)', marginBottom: '1.5rem' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#cbd5e1' }}>
+          <div className="form-group captcha-box">
+            <label>
               <ShieldAlert size={16} color="#2dd4bf" />
               <span>Security Check (CAPTCHA)</span>
             </label>
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginTop: '0.5rem' }}>
-              <div style={{ 
-                background: 'rgba(45, 212, 191, 0.15)', 
-                padding: '0.6rem 1rem', 
-                borderRadius: '6px', 
-                fontWeight: 800, 
-                fontSize: '1.25rem',
-                color: '#2dd4bf',
-                letterSpacing: '4px',
-                fontFamily: 'monospace',
-                textDecoration: 'line-through',
-                border: '1px solid rgba(45, 212, 191, 0.3)',
-                userSelect: 'none'
-              }}>
+            <div className="captcha-row">
+              <div className="captcha-code">
                 {captchaString}
               </div>
-              <input 
-                type="text" 
-                className="form-control" 
-                placeholder="Type the characters" 
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Type the code"
                 value={captchaAnswer}
                 onChange={(e) => setCaptchaAnswer(e.target.value)}
                 required
-                style={{ flex: 1, fontSize: '1.1rem', textTransform: 'uppercase' }}
+                aria-label="Security check characters"
               />
             </div>
           </div>
 
-          <button 
-            type="submit" 
-            className="btn btn-primary" 
-            style={{ width: '100%', padding: '0.95rem', fontSize: '1.02rem', marginTop: '0.5rem' }}
+          <button
+            type="submit"
+            className="btn btn-primary btn-block"
+            disabled={loading}
           >
-            <UserCheck size={18} style={{ marginRight: '8px' }} />
-            <span>Secure Login</span>
+            <UserCheck size={18} />
+            <span>{loading ? 'Signing in… first login can take up to a minute' : 'Secure Login'}</span>
           </button>
         </form>
       </div>

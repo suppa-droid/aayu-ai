@@ -8,6 +8,7 @@ from app.services.citizen_service import citizen_service
 from app.models.enums import ApplicationStatus
 from app.core.security import get_current_user
 from app.models.db_models import DBUser
+from app.api.v1.auth import require_admin
 
 router = APIRouter(prefix="/applications", tags=["Applications"], dependencies=[Depends(get_current_user)])
 
@@ -36,7 +37,13 @@ def list_applications(citizen_id: Optional[str] = None, db: Session = Depends(ge
     return application_service.list_applications(db, citizen_id=citizen_id)
 
 @router.patch("/{app_id}/status", response_model=ApplicationResponse)
-def update_application_status(app_id: str, status: ApplicationStatus, remarks: Optional[str] = None, db: Session = Depends(get_db)):
+def update_application_status(
+    app_id: str,
+    status: ApplicationStatus,
+    remarks: Optional[str] = None,
+    db: Session = Depends(get_db),
+    _: DBUser = Depends(require_admin),
+):
     app = application_service.update_status(db, app_id, status, remarks)
     if not app:
         raise HTTPException(status_code=404, detail="Application not found.")

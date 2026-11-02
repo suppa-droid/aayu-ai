@@ -35,7 +35,7 @@ def eligibility_node(state: CitizenEvaluationState):
         scheme_id = s["scheme_id"]
         eval_res = eligibility_agent.evaluate(profile, scheme_id)
         evaluations.append(eval_res.model_dump())
-        if eval_res.status in ["ELIGIBLE", "CONDITIONALLY_ELIGIBLE"]:
+        if eval_res.status == "ELIGIBLE":
             eligible_scheme_ids.append(scheme_id)
 
     return {

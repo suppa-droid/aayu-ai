@@ -27,10 +27,10 @@ export default function RegisterCitizenPage() {
     disability_percentage: 0,
     state: 'Uttar Pradesh',
     district: 'Varanasi',
-    mobile_number: '9876543210',
-    has_aadhaar: true,
-    has_bpl_card: true,
-    has_bank_account: true,
+    mobile_number: '',
+    has_aadhaar: false,
+    has_bpl_card: false,
+    has_bank_account: false,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
@@ -255,7 +255,9 @@ export default function RegisterCitizenPage() {
                   className="form-control" 
                   value={formData.mobile_number} 
                   onChange={handleChange} 
-                  required 
+                  required
+                  placeholder="10-digit mobile, e.g. 9876543210"
+                  inputMode="numeric" 
                 />
               </div>
             </div>
@@ -287,7 +289,7 @@ export default function RegisterCitizenPage() {
                   onChange={handleChange} 
                   style={{ width: '18px', height: '18px', accentColor: '#0d9488' }} 
                 />
-                <span style={{ fontWeight: 600, fontSize: '0.92rem' }}>BPL Ration Card Holder</span>
+                <span style={{ fontWeight: 600, fontSize: '0.92rem' }}>Below Poverty Line household</span>
               </label>
 
               <label 
@@ -331,7 +333,7 @@ export default function RegisterCitizenPage() {
                   onChange={handleChange} 
                   style={{ width: '18px', height: '18px', accentColor: '#0d9488' }} 
                 />
-                <span style={{ fontWeight: 600, fontSize: '0.92rem' }}>BPL Certificate / Card</span>
+                <span style={{ fontWeight: 600, fontSize: '0.92rem' }}>Physical BPL card is with the citizen</span>
               </label>
 
               <label 

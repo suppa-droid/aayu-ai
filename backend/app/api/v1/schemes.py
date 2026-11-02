@@ -1,9 +1,10 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from typing import List, Dict, Any
 from app.rules_engine.rule_loader import rule_loader
 from app.knowledge_graph.graph_builder import knowledge_graph
+from app.core.security import get_current_user
 
-router = APIRouter(prefix="/schemes", tags=["Schemes & Knowledge Graph"])
+router = APIRouter(prefix="/schemes", tags=["Schemes & Knowledge Graph"], dependencies=[Depends(get_current_user)])
 
 @router.get("/")
 def list_schemes():

@@ -22,6 +22,9 @@ dist/
 # Environment variables
 .env
 .env.local
+!backend/.env
+!frontend-field-dashboard/.env.local
+!frontend-admin-panel/.env.local
 
 # IDEs & System
 .vscode/

@@ -43,9 +43,14 @@ export default function Navigation() {
         <div>
           <div className="brand-title">Aayu AI Admin</div>
           <div className="brand-subtitle">
-            <span style={{ color: '#c084fc', fontWeight: 600 }}>{user.name}</span>
-            <span style={{ opacity: 0.4 }}>•</span>
-            <span style={{ textTransform: 'capitalize' }}>{user.role?.replace('_', ' ')}</span>
+            <span className="brand-name">{user.name}</span>
+            <span aria-hidden="true">•</span>
+            <span>
+              {user.role
+                ?.replaceAll('_', ' ')
+                .toLowerCase()
+                .replace(/\b\w/g, (letter: string) => letter.toUpperCase())}
+            </span>
           </div>
         </div>
       </Link>
@@ -101,16 +106,9 @@ export default function Navigation() {
           <span>Users</span>
         </Link>
 
-        <button 
-          onClick={logout} 
-          className="btn btn-secondary" 
-          style={{ 
-            marginLeft: '0.8rem', 
-            padding: '0.45rem 0.85rem', 
-            fontSize: '0.88rem', 
-            color: '#fb7185',
-            borderColor: 'rgba(244, 63, 94, 0.25)' 
-          }}
+        <button
+          onClick={logout}
+          className="btn btn-secondary btn-exit"
           title="Logout"
         >
           <LogOut size={16} />

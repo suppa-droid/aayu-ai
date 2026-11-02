@@ -24,6 +24,7 @@ export default function PipelineHealthPage() {
   const [health, setHealth] = useState<any>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     fetchHealth();
@@ -36,9 +37,11 @@ export default function PipelineHealthPage() {
     try {
       const res = await adminApi.get('/admin/system/pipeline-health');
       setHealth(res.data);
+      setLoadError('');
       setLastUpdated(new Date());
     } catch (e) {
       console.error(e);
+      setLoadError('Pipeline health could not be loaded from the API.');
     } finally {
       setIsRefreshing(false);
     }
@@ -54,16 +57,7 @@ export default function PipelineHealthPage() {
     return `${secs}s`;
   };
 
-  const agentsList = health?.agents_telemetry || [
-    { name: 'ProfilingAgent', status: 'HEALTHY', role: 'Citizen profile aggregation & socio-economic normalizing', latency_ms: 120, engine: 'In-Memory Pipeline' },
-    { name: 'RuleVerificationAgent', status: 'HEALTHY', role: 'Deterministic Python/YAML policy evaluator (5 schemes loaded)', latency_ms: 15, engine: 'AST Expression Engine' },
-    { name: 'ExplainabilityAgent', status: 'HEALTHY', role: 'Counterfactual reasoning & missing condition actionable guidance', latency_ms: 280, engine: 'Groq (llama-3.3-70b-versatile)' },
-    { name: 'RecommendationAgent', status: 'HEALTHY', role: 'Package synthesizer & local dialect audio brief generator', latency_ms: 310, engine: 'Groq (llama-3.3-70b-versatile)' },
-    { name: 'PlanningAgent', status: 'HEALTHY', role: 'Fulfillment roadmap, step checklist & dispute risk assessment', latency_ms: 260, engine: 'Groq (llama-3.3-70b-versatile)' },
-    { name: 'DocumentVerificationAgent', status: 'HEALTHY', role: 'Groq Llama-3.2-11b Vision OCR parser & fraud tamper detector', latency_ms: 420, engine: 'Groq Vision LPU' },
-    { name: 'ReminderAgent', status: 'HEALTHY', role: 'Proactive lifecycle alerts (Age 60/80 milestone, certificate renewal)', latency_ms: 30, engine: 'Scheduled Dispatcher' },
-    { name: 'OrchestratorStateMachine', status: 'HEALTHY', role: 'LangGraph multi-agent execution pipeline & state graph', latency_ms: 45, engine: 'LangGraph Graph Executor' }
-  ];
+  const agentsList = health?.agents_telemetry || [];
 
   return (
     <div className="animate-fade-in">
@@ -105,11 +99,11 @@ export default function PipelineHealthPage() {
             <Activity size={18} color="#10b981" />
           </div>
           <div className="stat-val" style={{ color: '#34d399', fontSize: '1.8rem' }}>
-            {health?.status || 'HEALTHY'}
+            {health?.status || (loadError ? 'UNREACHABLE' : 'CHECKING')}
           </div>
           <p style={{ fontSize: '0.82rem', color: '#34d399', marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
             <span className="pulse-beacon"></span>
-            <span>8 Active Nodes • Uptime {formatUptime(health?.uptime_seconds || 0)}</span>
+            <span>{health ? `${health.active_agents?.length ?? agentsList.length} agents` : 'Agents pending'}{health?.pipeline_steps ? ` • ${health.pipeline_steps.length} in the eligibility run` : ''} • Uptime {formatUptime(health?.uptime_seconds || 0)}</span>
           </p>
         </div>
 
@@ -120,7 +114,7 @@ export default function PipelineHealthPage() {
             <Database size={18} color="#38bdf8" />
           </div>
           <div className="stat-val" style={{ color: '#38bdf8', fontSize: '1.8rem' }}>
-            {health?.database?.latency_ms ? `${health.database.latency_ms} ms` : 'ONLINE'}
+            {health?.database ? `${health.database.latency_ms} ms` : (loadError ? 'OFFLINE' : '…')}
           </div>
           <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
             {health?.database?.records ? `${health.database.records.citizens} Citizens • ${health.database.records.applications} Apps` : 'Connected'}
@@ -134,7 +128,7 @@ export default function PipelineHealthPage() {
             <Zap size={18} color="#8b5cf6" />
           </div>
           <div className="stat-val" style={{ color: '#c084fc', fontSize: '1.8rem' }}>
-            {health?.llm_inference?.status?.split(' ')[0] || 'ONLINE'}
+            {health?.llm_inference?.status?.split(' ')[0] || (loadError ? 'OFFLINE' : '…')}
           </div>
           <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
             {health?.llm_inference?.model || 'Groq LPU Acceleration'}
@@ -148,7 +142,7 @@ export default function PipelineHealthPage() {
             <Layers size={18} color="#f59e0b" />
           </div>
           <div className="stat-val" style={{ color: '#f59e0b', fontSize: '1.8rem' }}>
-            {health?.rules_engine?.rules_loaded ? `${health.rules_engine.rules_loaded} Schemes` : '5 Schemes'}
+            {health ? `${health.rules_engine?.rules_loaded ?? 0} Schemes` : (loadError ? 'Unavailable' : '…')}
           </div>
           <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
             Deterministic YAML AST
@@ -255,6 +249,12 @@ export default function PipelineHealthPage() {
           <span>Active Agent Nodes in LangGraph Execution Topology</span>
         </h3>
 
+        {loadError && (
+          <p style={{ color: '#fda4af', marginBottom: '1rem' }}>{loadError}</p>
+        )}
+        {!health && !loadError && (
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>Checking the live pipeline…</p>
+        )}
         <div className="grid-2">
           {agentsList.map((agent: any, idx: number) => (
             <div 
@@ -277,8 +277,8 @@ export default function PipelineHealthPage() {
                   <strong style={{ fontSize: '1rem', color: 'var(--text-primary)', fontFamily: 'JetBrains Mono' }}>
                     {agent.name}
                   </strong>
-                  <span className="badge badge-eligible" style={{ fontSize: '0.72rem', padding: '0.2rem 0.5rem' }}>
-                    {agent.status || 'Active'}
+                  <span className={`badge ${agent.status === 'HEALTHY' ? 'badge-eligible' : 'badge-warning'}`} style={{ fontSize: '0.72rem', padding: '0.2rem 0.5rem' }}>
+                    {agent.status || 'UNKNOWN'}
                   </span>
                 </div>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.86rem', marginTop: '0.25rem' }}>
@@ -286,10 +286,7 @@ export default function PipelineHealthPage() {
                 </p>
                 <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.6rem', flexWrap: 'wrap' }}>
                   <span className="badge badge-violet" style={{ fontSize: '0.72rem', padding: '0.2rem 0.5rem' }}>
-                    ⚡ {agent.engine || 'LangGraph Node'}
-                  </span>
-                  <span className="badge badge-secondary" style={{ fontSize: '0.72rem', padding: '0.2rem 0.5rem' }}>
-                    ⏱ Latency ~{agent.latency_ms || 180}ms
+                    {agent.engine || 'Agent'}
                   </span>
                 </div>
               </div>

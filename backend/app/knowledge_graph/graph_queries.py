@@ -21,7 +21,7 @@ class GraphQueryEngine:
                 "step": 2,
                 "scheme_id": "RVY",
                 "name": "Rashtriya Vayoshri Assistive Devices",
-                "reason": "Unlocked via IGNOAPS/BPL status for free spectacles, wheelchairs, and hearing aids."
+                "reason": "Free spectacles, wheelchairs, and hearing aids for a BPL household or certified monthly income at or below Rs. 3,000."
             })
 
         # Step 3: Additional schemes (AVYAY / SACRED / AB_PMJAY_70)

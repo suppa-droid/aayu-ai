@@ -15,13 +15,13 @@ class SchemeKnowledgeGraph:
                 source="IGNOAPS",
                 target="RVY",
                 relationship="PREREQUISITE_FOR",
-                description="IGNOAPS registration serves as proof of BPL status for Rashtriya Vayoshri device allocation."
+                description="IGNOAPS can be used as BPL proof for Rashtriya Vayoshri. Applicants who are not BPL can still qualify with certified monthly income at or below Rs. 3,000."
             ),
             GraphEdge(
                 source="IGNOAPS",
                 target="AB_PMJAY_70",
                 relationship="PROGRESSION_TO",
-                description="Upon turning 70, IGNOAPS beneficiaries automatically qualify for Ayushman Bharat 70+ Universal Cover."
+                description="Ayushman Bharat 70+ is universal at age 70. It does not require IGNOAPS. The pension is only an earlier step in the suggested filing order."
             )
         ]
 

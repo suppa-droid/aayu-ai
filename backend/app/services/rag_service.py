@@ -33,10 +33,16 @@ class RAGService:
         retrieved = vector_store.search(query, top_k=4)
 
         if not retrieved:
-            return {
-                "answer": "I'm sorry, the Aayu AI knowledge base hasn't been indexed yet. Please restart the backend server.",
-                "retrieved_chunks": 0
-            }
+            # An empty index is a startup problem. A loaded index with no
+            # match means the question is outside the scheme text.
+            if not vector_store.chunks:
+                answer = "I'm sorry, the Aayu AI knowledge base hasn't been indexed yet. Please restart the backend server."
+            else:
+                answer = (
+                    "I couldn't find that in the scheme guidelines I have. "
+                    "Ask about IGNOAPS, Rashtriya Vayoshri, AVYAY, PM-JAY for seniors, or SACRED."
+                )
+            return {"answer": answer, "retrieved_chunks": 0}
 
         # ── Step 2: Build grounded context from retrieved chunks ──
         context_block = ""

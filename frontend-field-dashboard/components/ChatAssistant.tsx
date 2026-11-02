@@ -73,7 +73,7 @@ export default function ChatAssistant() {
       setMessages(prev => [...prev, { 
         id: (Date.now() + 1).toString(), 
         role: 'assistant', 
-        content: 'Error: Could not connect to the Aayu AI backend.' 
+        content: 'Could not reach the local API. Confirm the backend is running on http://localhost:8000.' 
       }]);
     } finally {
       setIsLoading(false);
@@ -86,8 +86,8 @@ export default function ChatAssistant() {
       {/* Chat Window */}
       {isOpen && (
         <div style={{ 
-          width: '380px', 
-          height: '500px', 
+          width: 'min(380px, calc(100vw - 1.5rem))', 
+          height: 'min(500px, calc(100vh - 8rem))', 
           background: 'var(--bg-secondary)', 
           border: '1px solid var(--border-subtle)', 
           borderRadius: '16px', 

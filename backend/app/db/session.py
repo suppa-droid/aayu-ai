@@ -26,9 +26,6 @@ def init_db():
                 role="SYSTEM_ADMIN"
             )
             db.add(admin)
-        else:
-            admin.hashed_password = get_password_hash("password123")
-
         fw = db.query(DBUser).filter(DBUser.username == "field_worker").first()
         if not fw:
             fw = DBUser(
@@ -38,9 +35,6 @@ def init_db():
                 role="FIELD_WORKER"
             )
             db.add(fw)
-        else:
-            fw.hashed_password = get_password_hash("password123")
-
         # Also add a district admin user if needed
         dist_admin = db.query(DBUser).filter(DBUser.username == "district_admin").first()
         if not dist_admin:
@@ -52,9 +46,6 @@ def init_db():
                 district="South Delhi"
             )
             db.add(dist_admin)
-        else:
-            dist_admin.hashed_password = get_password_hash("password123")
-
         db.commit()
     finally:
         db.close()

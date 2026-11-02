@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../../lib/api-client';
+import { getUser } from '../../lib/auth';
 import {
   Camera, FileCheck, Sparkles, CheckCircle2, AlertTriangle,
   Trash2, ScanLine, ShieldCheck, FileCheck2, UploadCloud, Zap, Eye
@@ -32,6 +33,7 @@ export default function DocumentVerificationPage() {
   const [theFile, setTheFile]     = useState<File | null>(null);
   const [busy, setBusy]           = useState(false);
   const [res, setRes]             = useState<any>(null);
+  const [queueNote, setQueueNote] = useState('');
   const [dragOver, setDragOver]   = useState(false);
 
   /** Central function — called from file input, drag-drop, or paste */
@@ -81,7 +83,7 @@ export default function DocumentVerificationPage() {
   async function doVerify(fileOverride?: File) {
     const f = fileOverride ?? theFile;
     if (!f) { alert('Please select a document image first'); return; }
-    setBusy(true); setRes(null);
+    setBusy(true); setRes(null); setQueueNote('');
     try {
       const fd = new FormData();
       fd.append('document_type', docType);
@@ -93,35 +95,30 @@ export default function DocumentVerificationPage() {
       const result = r.data;
       setRes(result);
 
-      // ── Auto-save escalation to DB so admin panel sees it immediately ──
-      if (result.escalate_level) {
+      if (result.escalation_id) {
+        setQueueNote(`Sent to the district admin queue. Ticket ${String(result.escalation_id).slice(0, 8)}.`);
+      } else if (result.escalate_level) {
         try {
-          // Map OCR status to a valid EscalationReason enum value
           const reasonMap: Record<string, string> = {
             FLAGGED_MISMATCH:       'NAME_MISMATCH',
             FLAGGED_QUALITY:        'DOCUMENT_DAMAGED',
             FRAUD_ALERT:            'DOCUMENT_DAMAGED',
             VISION_AI_UNAVAILABLE:  'SYSTEM_PIPELINE_ERROR',
           };
-          const reason = reasonMap[result.status] ?? 'SYSTEM_PIPELINE_ERROR';
-
-          // We need a placeholder application_id — use a dummy sentinel UUID
-          // that the admin can see maps to a document-only verification (no application)
-          const SENTINEL_APP_ID = '00000000-0000-0000-0000-000000000001';
-
-          await apiClient.post('/admin/district/escalate', {
-            application_id: SENTINEL_APP_ID,
-            reason,
+          const saved = await apiClient.post('/admin/district/escalate', {
+            application_id: '00000000-0000-0000-0000-000000000001',
+            reason: reasonMap[result.status] ?? 'SYSTEM_PIPELINE_ERROR',
             description: `[Document Verification] Citizen: "${citizenName}" | Doc: ${docType} | AI finding: ${result.issue ?? result.status}`,
-            field_worker_id: 'FW-KIOSK',
+            field_worker_id: getUser()?.username || 'field_worker',
           });
+          setQueueNote(`Sent to the district admin queue. Ticket ${String(saved.data?.id || '').slice(0, 8)}.`);
         } catch (escErr) {
-          // Non-fatal — the UI result is still shown; escalation save failed silently
           console.warn('Escalation save failed:', escErr);
+          setQueueNote('This scan needs a district review, but the admin queue did not accept the ticket. Run it again.');
         }
       }
     } catch {
-      setRes({ is_valid: false, status: 'BACKEND UNREACHABLE', issue: 'Cannot connect to verification server', action: 'Ensure the backend is running on port 8000' });
+      setRes({ is_valid: false, status: 'BACKEND UNREACHABLE', issue: 'Cannot connect to the verification server', action: 'Wait for the API to respond, then run the scan again.' });
     } finally {
       setBusy(false);
     }
@@ -159,7 +156,7 @@ export default function DocumentVerificationPage() {
       </div>
 
       {/* KPI STATS */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'1.25rem', marginBottom:'1.75rem' }}>
+      <div className="grid-3" style={{ marginBottom:'1.75rem' }}>
         {([
           { label:'OCR Vision Model',      value:'Gemini 3.6 Flash', sub:'Google AI Accelerated',    color:'#2dd4bf', icon:<Sparkles size={17} color="#2dd4bf" /> },
           { label:'Verification Pipeline', value:'3-Tier HITL',       sub:'Auto / L1 Recapt / L2 District', color:'#38bdf8', icon:<ShieldCheck size={17} color="#38bdf8" /> },
@@ -177,7 +174,7 @@ export default function DocumentVerificationPage() {
       </div>
 
       {/* MAIN 2-COL */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1.75rem', alignItems:'start' }}>
+      <div className="grid-2" style={{ alignItems:'start' }}>
 
         {/* ── LEFT: Upload ─────────────────────────────────────────── */}
         <div style={CARD}>
@@ -224,6 +221,7 @@ export default function DocumentVerificationPage() {
               <input
                 type="file"
                 accept="image/*"
+                capture="environment"
                 onChange={onInputChange}
                 style={{ display:'none' }}
               />
@@ -348,6 +346,11 @@ export default function DocumentVerificationPage() {
                   </span>
                 </div>
                 <p style={{ fontSize:'0.83rem', color:'#94a3b8', margin:0 }}>{res.action}</p>
+                {queueNote && (
+                  <p style={{ fontSize:'0.84rem', color: queueNote.startsWith('Sent') ? '#34d399' : '#fbbf24', margin: '0.55rem 0 0' }}>
+                    {queueNote}
+                  </p>
+                )}
               </div>
 
               <div style={{ background:'rgba(5,8,17,0.7)', border:'1px solid rgba(255,255,255,0.09)', borderRadius:'10px', padding:'1rem' }}>
@@ -357,7 +360,9 @@ export default function DocumentVerificationPage() {
                     { k:'Citizen Profile', v:citizenName,         c:'#f8fafc' },
                     ...(res.extracted_name ? [{ k:'Extracted Name', v:res.extracted_name, c: res.is_valid ? '#34d399' : '#fb7185' }] : []),
                     ...(res.document_number && res.document_number !== 'N/A' ? [{ k:'Document ID', v:res.document_number, c:'#38bdf8', mono:true }] : []),
-                    { k:'Name Match', v: res.is_valid ? '✓ Confirmed' : '✗ Mismatch', c: res.is_valid ? '#34d399' : '#fb7185' },
+                    ...(res.status === 'VERIFIED' || res.status === 'FLAGGED_MISMATCH'
+                      ? [{ k:'Name Match', v: res.is_valid ? '✓ Confirmed' : '✗ Mismatch', c: res.is_valid ? '#34d399' : '#fb7185' }]
+                      : []),
                   ]).map((row, i, arr) => (
                     <div key={row.k} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', paddingBottom: i < arr.length-1 ? '0.45rem' : 0, borderBottom: i < arr.length-1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
                       <span style={{ color:'#64748b', fontSize:'0.82rem' }}>{row.k}</span>

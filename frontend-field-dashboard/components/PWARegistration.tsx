@@ -8,8 +8,9 @@ export default function PWARegistration() {
   const [showInstallBanner, setShowInstallBanner] = useState(false);
 
   useEffect(() => {
-    // 1. Register Service Worker
-    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+    // Register the service worker only in production. The leftover
+    // public/sw.js from a prior build intercepts API calls in `next dev`.
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
       window.addEventListener('load', () => {
         navigator.serviceWorker
           .register('/sw.js')
@@ -19,6 +20,10 @@ export default function PWARegistration() {
           .catch((err) => {
             console.warn('ServiceWorker registration error:', err);
           });
+      });
+    } else if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then((regs) => {
+        regs.forEach((reg) => reg.unregister());
       });
     }
 

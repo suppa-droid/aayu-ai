@@ -10,8 +10,6 @@ rules:
   - field: "age"
     operator: ">="
     value: 70
-    description: "Universal coverage for all Indian citizens aged 70 years and above, regardless of income."
-prerequisites:
-  - "IGNOAPS"
+    description: "Universal coverage for all Indian citizens aged 70 years and above, regardless of income or other scheme enrolment."
 benefit_details:
   health_cover: "Rs. 5,00,000 per family per year dedicated health insurance top-up for seniors."
