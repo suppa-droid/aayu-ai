@@ -1,9 +1,34 @@
-from typing import Dict, Any, List
+from datetime import datetime, timezone
+from typing import Dict, Any, List, Optional
 from app.rules_engine.rule_loader import rule_loader
+from app.services.application_service import is_renewal_alert
+
+def _as_utc_naive(moment: datetime) -> datetime:
+    if moment.tzinfo is None or moment.tzinfo.utcoffset(moment) is None:
+        return moment
+    return moment.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def _coerce_due(value) -> Optional[datetime]:
+    if isinstance(value, datetime):
+        return _as_utc_naive(value)
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    if not text:
+        return None
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    return _as_utc_naive(parsed)
+
 
 class PlanningAgent:
     """Proactive Life-Event Engine that re-evaluates eligibility & schedules renewals."""
-    def check_proactive_triggers(self, citizen: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def check_proactive_triggers(self, citizen: Dict[str, Any], renewal_applications=None) -> List[Dict[str, Any]]:
         triggers = []
         age = citizen.get("age", 60)
 
@@ -29,12 +54,16 @@ class PlanningAgent:
                 "message": "Senior citizen reached age 80! IGNOAPS pension rate upgrades from Rs. 500 to Rs. 800/month."
             })
 
-        # Milestone 3: Annual BPL/Income Certificate Renewal (pension households only)
-        if citizen.get("is_bpl", True) is not False:
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        for item in renewal_applications or []:
+            due = _coerce_due(item.get("renewal_due_at"))
+            if not is_renewal_alert(item.get("status"), due, now):
+                continue
+            label = item.get("scheme_name") or item.get("scheme_id") or "Scheme"
             triggers.append({
                 "type": "ANNUAL_RENEWAL_DUE",
-                "scheme_id": "IGNOAPS",
-                "message": "Annual BPL income re-verification due in 30 days."
+                "scheme_id": item.get("scheme_id"),
+                "message": f"{label} renewal due on {due.date().isoformat()}.",
             })
 
         return triggers

@@ -4,6 +4,7 @@ sponsoring_agency: "ALIMCO & Ministry of Social Justice and Empowerment"
 category: "Assistive Devices & Mobility Support"
 min_age: 60
 requires_bpl: false
+renewal_period_days: 365
 required_documents:
   - "Aadhaar Card"
   - "BPL Certificate"

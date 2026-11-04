@@ -3,9 +3,11 @@ from sqlalchemy.orm import Session
 from typing import Dict, Any
 from app.db.session import get_db
 from app.services.citizen_service import citizen_service
+from app.services.application_service import application_service
 from app.agents.orchestrator import orchestrator
 from app.agents.eligibility_agent import eligibility_agent
 from app.core.security import get_current_user
+from app.models.enums import ApplicationStatus
 
 router = APIRouter(prefix="/eligibility", tags=["Eligibility & Counterfactual Agent"], dependencies=[Depends(get_current_user)])
 
@@ -32,6 +34,21 @@ async def evaluate_full_citizen_pipeline(citizen_id: str, db: Session = Depends(
         "has_bpl_card": cit.has_bpl_card,
         "has_bank_account": cit.has_bank_account
     }
+
+    raw_data["renewal_applications"] = []
+    for application in application_service.list_applications(db, citizen_id=cit.id):
+        status = application.status
+        if isinstance(status, ApplicationStatus):
+            status_value = status.value
+        else:
+            status_value = "" if status is None else str(status)
+        due = application.renewal_due_at
+        raw_data["renewal_applications"].append({
+            "scheme_id": application.scheme_id,
+            "status": status_value,
+            "renewal_due_at": due.isoformat() if due is not None else None,
+            "scheme_name": getattr(application, "scheme_name", None),
+        })
 
     # Use the async version — safe inside FastAPI's event loop
     return await orchestrator.run_full_pipeline_async(raw_data)

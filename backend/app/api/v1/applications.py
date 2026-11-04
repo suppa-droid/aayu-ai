@@ -47,4 +47,5 @@ def update_application_status(
     app = application_service.update_status(db, app_id, status, remarks)
     if not app:
         raise HTTPException(status_code=404, detail="Application not found.")
+    application_service._attach_names(db, [app])
     return app

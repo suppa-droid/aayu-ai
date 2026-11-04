@@ -60,8 +60,9 @@ async def recommendation_node(state: CitizenEvaluationState):
 
 def planning_node(state: CitizenEvaluationState):
     profile = state["profile"]
+    renewal_applications = state["raw_citizen_data"].get("renewal_applications") or []
     return {
-        "proactive_triggers": planning_agent.check_proactive_triggers(profile),
+        "proactive_triggers": planning_agent.check_proactive_triggers(profile, renewal_applications),
         "roadmaps": planning_agent.build_application_roadmaps(profile, state["eligible_scheme_ids"]),
     }
 

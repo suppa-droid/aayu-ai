@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { adminApi } from '../../lib/admin-api';
+import { getUser } from '../../lib/auth';
 import { Shield, Plus, UserCircle, MapPin, X, Save } from 'lucide-react';
 
 export default function UsersPage() {
@@ -17,8 +18,11 @@ export default function UsersPage() {
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [currentUsername, setCurrentUsername] = useState<string | null>(null);
 
   useEffect(() => {
+    setCurrentUsername(getUser()?.username || null);
     fetchUsers();
   }, []);
 
@@ -72,6 +76,35 @@ export default function UsersPage() {
     }
   };
 
+  const changeActive = async (user: any, active: boolean) => {
+    const name = user.full_name || user.username;
+    const prompt = active
+      ? `Activate ${name}? They will be able to sign in again.`
+      : `Deactivate ${name}? They will not be able to sign in.`;
+    if (!window.confirm(prompt)) return;
+    setActionError('');
+    try {
+      await adminApi.patch(`/auth/users/${user.id}/active`, { is_active: active });
+      await fetchUsers();
+    } catch (err: any) {
+      const detail = err.response?.data?.detail;
+      setActionError(typeof detail === 'string' ? detail : 'The account could not be updated.');
+    }
+  };
+
+  const removeUser = async (user: any) => {
+    const name = user.full_name || user.username;
+    if (!window.confirm(`Delete ${name} (@${user.username})? This cannot be undone.`)) return;
+    setActionError('');
+    try {
+      await adminApi.delete(`/auth/users/${user.id}`);
+      await fetchUsers();
+    } catch (err: any) {
+      const detail = err.response?.data?.detail;
+      setActionError(typeof detail === 'string' ? detail : 'The account could not be deleted.');
+    }
+  };
+
   const roleColors: Record<string, string> = {
     'FIELD_WORKER': '#10b981',
     'LEVEL_1_FIELD_WORKER': '#10b981',
@@ -113,27 +146,35 @@ export default function UsersPage() {
         </button>
       </div>
 
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+      {actionError && (
+        <p style={{ color: '#fda4af', marginBottom: '1rem' }}>{actionError}</p>
+      )}
+
+      <div className="card" style={{ padding: 0, overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--border-subtle)' }}>
               <th style={{ padding: '1rem', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>User</th>
               <th style={{ padding: '1rem', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>Role</th>
               <th style={{ padding: '1rem', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>District</th>
+              <th style={{ padding: '1rem', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>Status</th>
               <th style={{ padding: '1rem', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={4} style={{ padding: '2rem', textAlign: 'center' }}>Loading...</td></tr>
+              <tr><td colSpan={5} style={{ padding: '2rem', textAlign: 'center' }}>Loading...</td></tr>
             ) : users.length === 0 ? (
               <tr>
-                <td colSpan={4} style={{ padding: '2rem', textAlign: 'center', color: error ? '#fda4af' : 'var(--text-secondary)' }}>
+                <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: error ? '#fda4af' : 'var(--text-secondary)' }}>
                   {error || 'No users found.'}
                 </td>
               </tr>
-            ) : users.map(u => (
-              <tr key={u.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+            ) : users.map(u => {
+              const active = u.is_active !== false;
+              const isSelf = u.username === currentUsername;
+              return (
+              <tr key={u.id} style={{ borderBottom: '1px solid var(--border-subtle)', opacity: active ? 1 : 0.72 }}>
                 <td style={{ padding: '1rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <div style={{ 
@@ -169,26 +210,55 @@ export default function UsersPage() {
                   </div>
                 </td>
                 <td style={{ padding: '1rem' }}>
-                  <button 
-                    className="btn btn-secondary" 
-                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
-                    onClick={() => {
-                      setEditingUserId(u.id);
-                      setFormData({
-                        username: u.username,
-                        password: '',
-                        full_name: u.full_name,
-                        role: u.role,
-                        district: u.district || ''
-                      });
-                      setIsModalOpen(true);
-                    }}
-                  >
-                    Edit
-                  </button>
+                  <span className="badge" style={{
+                    background: active ? 'rgba(16, 185, 129, 0.15)' : 'rgba(251, 113, 133, 0.15)',
+                    color: active ? '#6ee7b7' : '#fda4af',
+                    border: `1px solid ${active ? 'rgba(16, 185, 129, 0.4)' : 'rgba(251, 113, 133, 0.45)'}`,
+                  }}>
+                    {active ? 'Active' : 'Deactivated'}
+                  </span>
+                </td>
+                <td style={{ padding: '1rem' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                    <button 
+                      className="btn btn-secondary" 
+                      style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', minHeight: '44px' }}
+                      onClick={() => {
+                        setEditingUserId(u.id);
+                        setFormData({
+                          username: u.username,
+                          password: '',
+                          full_name: u.full_name,
+                          role: u.role,
+                          district: u.district || ''
+                        });
+                        setIsModalOpen(true);
+                      }}
+                    >
+                      Edit
+                    </button>
+                    {!isSelf && (
+                      <button
+                        className="btn btn-secondary"
+                        style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', minHeight: '44px', color: active ? '#fde68a' : '#6ee7b7' }}
+                        onClick={() => changeActive(u, !active)}
+                      >
+                        {active ? 'Deactivate' : 'Activate'}
+                      </button>
+                    )}
+                    {!isSelf && (
+                      <button
+                        className="btn btn-secondary"
+                        style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', minHeight: '44px', color: '#fda4af' }}
+                        onClick={() => removeUser(u)}
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
-            ))}
+            );})}
           </tbody>
         </table>
       </div>

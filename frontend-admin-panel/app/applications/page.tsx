@@ -92,7 +92,7 @@ export default function ApplicationsKanban() {
       <div style={{ marginBottom: '2rem' }}>
         <h1 style={{ fontSize: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
           <Columns size={32} color="#4f46e5" />
-          Application Processing Pipeline
+          Application Processing and Tracking Pipeline
         </h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '1.05rem' }}>
           Drag and drop citizen applications to update their status and trigger downstream workflows.

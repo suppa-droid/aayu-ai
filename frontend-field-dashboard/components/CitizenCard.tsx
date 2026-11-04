@@ -1,6 +1,6 @@
 'use client';
 import React from 'react';
-import { MapPin, Phone, IndianRupee, Sparkles, ShieldCheck, HeartPulse } from 'lucide-react';
+import { MapPin, Phone, IndianRupee, Sparkles, ShieldCheck, HeartPulse, Bell } from 'lucide-react';
 
 interface CitizenCardProps {
   citizen: {
@@ -17,10 +17,13 @@ interface CitizenCardProps {
     mobile_number: string;
   };
   onEvaluate?: (id: string) => void;
+  onAlerts?: (citizen: CitizenCardProps['citizen']) => void;
+  onDelete?: (citizen: CitizenCardProps['citizen']) => void;
+  alertsOpen?: boolean;
   isEvaluating?: boolean;
 }
 
-export default function CitizenCard({ citizen, onEvaluate, isEvaluating }: CitizenCardProps) {
+export default function CitizenCard({ citizen, onEvaluate, onAlerts, onDelete, alertsOpen, isEvaluating }: CitizenCardProps) {
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -53,9 +56,21 @@ export default function CitizenCard({ citizen, onEvaluate, isEvaluating }: Citiz
             {getInitials(citizen.name)}
           </div>
           <div>
-            <h3 style={{ fontSize: '1.15rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              {citizen.name}
-            </h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+              <h3 style={{ fontSize: '1.15rem', margin: 0 }}>{citizen.name}</h3>
+              {onAlerts && (
+                <button
+                  type="button"
+                  className={`btn ${alertsOpen ? 'btn-warning' : 'btn-secondary'}`}
+                  style={{ minHeight: '44px', padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
+                  aria-label={`Renewal alerts for ${citizen.name}`}
+                  onClick={() => onAlerts(citizen)}
+                >
+                  <Bell size={15} />
+                  <span>Alerts</span>
+                </button>
+              )}
+            </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.2rem', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
               <MapPin size={13} color="#06b6d4" />
               <span>{citizen.district}, {citizen.state}</span>
@@ -119,6 +134,16 @@ export default function CitizenCard({ citizen, onEvaluate, isEvaluating }: Citiz
         >
           <Sparkles size={16} />
           <span>{isEvaluating ? 'Evaluating Multi-Agent Engine...' : 'Run Multi-Agent Eligibility Engine'}</span>
+        </button>
+      )}
+      {onDelete && (
+        <button
+          type="button"
+          className="btn btn-secondary"
+          style={{ width: '100%', fontSize: '0.92rem', padding: '0.8rem', marginTop: '0.55rem', minHeight: '44px', color: '#fda4af' }}
+          onClick={() => onDelete(citizen)}
+        >
+          Delete registered citizen
         </button>
       )}
     </div>

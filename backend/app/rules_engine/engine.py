@@ -83,7 +83,8 @@ class DeterministicRulesEngine:
                 "score": 0.0,
                 "matched_criteria": [],
                 "unmatched_criteria": [f"Scheme '{scheme_id}' does not exist."],
-                "missing_fields": []
+                "missing_fields": [],
+                "benefit_summary": "",
             }
 
         rules = scheme.get("rules", [])
@@ -114,13 +115,17 @@ class DeterministicRulesEngine:
         else:
             status = EligibilityStatus.INELIGIBLE
 
+        benefit = scheme.get("benefit_details") or {}
+        benefit_summary = "; ".join(f"{k.replace('_', ' ')}: {v}" for k, v in benefit.items())
+
         return {
             "scheme_id": scheme_id,
             "scheme_name": scheme.get("name"),
             "status": status,
             "score": score,
             "matched_criteria": matched_criteria,
-            "unmatched_criteria": unmatched_criteria
+            "unmatched_criteria": unmatched_criteria,
+            "benefit_summary": benefit_summary,
         }
 
 rules_engine = DeterministicRulesEngine()

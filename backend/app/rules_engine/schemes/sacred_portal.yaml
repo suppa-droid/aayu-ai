@@ -4,6 +4,7 @@ sponsoring_agency: "Ministry of Social Justice and Empowerment"
 category: "Employment & Dignified Livelihood"
 min_age: 60
 requires_bpl: false
+renewal_period_days: 365
 required_documents:
   - "Aadhaar Card"
   - "Skill / Experience Certificate"

@@ -16,9 +16,108 @@ import {
   FileText, 
   ArrowRight,
   TrendingUp,
-  Download
+  Download,
+  AlertTriangle,
+  Bell
 } from 'lucide-react';
 import Link from 'next/link';
+
+const STATUS_RANK: Record<string, number> = {
+  ELIGIBLE: 0,
+  CONDITIONALLY_ELIGIBLE: 1,
+  INELIGIBLE: 2,
+};
+const FULLY_ELIGIBLE_SENTINEL = 'None - Citizen is fully eligible!';
+
+function statusColor(status: string): string {
+  if (status === 'ELIGIBLE') return '#34d399';
+  if (status === 'CONDITIONALLY_ELIGIBLE') return '#fbbf24';
+  if (status === 'INELIGIBLE') return '#fb7185';
+  return 'var(--text-secondary)';
+}
+
+function statusLabel(status: string): string {
+  if (status === 'CONDITIONALLY_ELIGIBLE') return 'CONDITIONAL';
+  return status || '—';
+}
+
+function statusBadgeClass(status: string): string {
+  if (status === 'ELIGIBLE') return 'badge badge-eligible';
+  if (status === 'CONDITIONALLY_ELIGIBLE') return 'badge badge-warning';
+  return 'badge badge-ineligible';
+}
+
+function parseDueDate(value: unknown): Date | null {
+  if (value == null || value === '') return null;
+  if (typeof value === 'string') {
+    const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value.trim());
+    if (match) {
+      const year = Number(match[1]);
+      const month = Number(match[2]);
+      const day = Number(match[3]);
+      const date = new Date(year, month - 1, day);
+      if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+      return date;
+    }
+  }
+  const parsed = new Date(value as string);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+}
+
+function calendarDaysFromToday(due: Date): number {
+  const today = new Date();
+  const startToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return Math.round((due.getTime() - startToday.getTime()) / 86400000);
+}
+
+const RENEWAL_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+const RENEWAL_SCHEMES = [
+  { scheme_id: 'IGNOAPS', scheme_name: 'Indira Gandhi National Old Age Pension Scheme' },
+  { scheme_id: 'RVY', scheme_name: 'Rashtriya Vayoshri Yojana' },
+  { scheme_id: 'AVYAY', scheme_name: 'Atal Vayo Abhyuday Yojana' },
+  { scheme_id: 'AB_PMJAY_70', scheme_name: 'Ayushman Bharat PM-JAY Senior Citizen Coverage' },
+  { scheme_id: 'SACRED', scheme_name: 'Senior Able Citizens for Re-Employment in Dignity (SACRED)' },
+];
+
+function renewalChip(app?: { renewal_due_at?: unknown } | null): { text: string; tone: 'overdue' | 'soon' | 'scheduled' | 'annual' } {
+  if (!app) return { text: 'Annual renewal', tone: 'annual' };
+  const due = parseDueDate(app.renewal_due_at);
+  if (!due) return { text: 'Starts after approval', tone: 'annual' };
+  const days = calendarDaysFromToday(due);
+  if (days < 0) return { text: 'Overdue', tone: 'overdue' };
+  if (days === 0) return { text: 'Due today', tone: 'soon' };
+  if (days <= 30) return { text: `${days} days left`, tone: 'soon' };
+  return { text: `Renews ${due.getDate()} ${RENEWAL_MONTHS[due.getMonth()]} ${due.getFullYear()}`, tone: 'scheduled' };
+}
+
+function benefitText(evaluation: { benefit_summary?: unknown }): string {
+  const summary = typeof evaluation.benefit_summary === 'string' ? evaluation.benefit_summary.trim() : '';
+  return summary || '—';
+}
+
+function missingText(evaluation: { status?: string; unmatched_criteria?: unknown; counterfactual?: { missing_criteria?: unknown } }): string {
+  const raw = [
+    ...(Array.isArray(evaluation.unmatched_criteria) ? evaluation.unmatched_criteria : []),
+    ...(Array.isArray(evaluation.counterfactual?.missing_criteria) ? evaluation.counterfactual.missing_criteria : []),
+  ];
+  const gaps = raw
+    .map((item) => String(item ?? ''))
+    .filter((item) => item.trim() !== '' && item !== FULLY_ELIGIBLE_SENTINEL);
+  const unique = gaps.filter((item, index) => gaps.indexOf(item) === index);
+  if (unique.length === 0) return evaluation.status === 'ELIGIBLE' ? 'None' : '—';
+  return unique.join(', ');
+}
+
+function rankedEvaluations(evaluations: any[]): any[] {
+  return [...evaluations].sort((a, b) => {
+    const rankA = STATUS_RANK[a.status] ?? 3;
+    const rankB = STATUS_RANK[b.status] ?? 3;
+    if (rankA !== rankB) return rankA - rankB;
+    return (Number(b.score) || 0) - (Number(a.score) || 0);
+  });
+}
 
 export default function Home() {
   const [citizens, setCitizens] = useState<any[]>([]);
@@ -31,20 +130,37 @@ export default function Home() {
   const [filterBplOnly, setFilterBplOnly] = useState(false);
   const [registryError, setRegistryError] = useState('');
   const [evalError, setEvalError] = useState('');
+  const [applications, setApplications] = useState<any[]>([]);
+  const [applicationsError, setApplicationsError] = useState('');
+  const [showAlerts, setShowAlerts] = useState(false);
   const autoEvaluated = useRef<string | null>(null);
+  const openedAlerts = useRef<string | null>(null);
   const evalRequest = useRef(0);
 
   useEffect(() => {
     fetchCitizens();
+    fetchApplications();
   }, []);
 
   useEffect(() => {
     if (!citizens.length || typeof window === 'undefined') return;
-    const citizenId = new URLSearchParams(window.location.search).get('citizen');
-    if (!citizenId || autoEvaluated.current === citizenId) return;
-    if (!citizens.some((c) => c.id === citizenId)) return;
-    autoEvaluated.current = citizenId;
-    handleEvaluate(citizenId);
+    const params = new URLSearchParams(window.location.search);
+    const citizenId = params.get('citizen');
+    const alertsId = params.get('alerts');
+    if (citizenId && autoEvaluated.current !== citizenId && citizens.some((c) => c.id === citizenId)) {
+      autoEvaluated.current = citizenId;
+      handleEvaluate(citizenId);
+      return;
+    }
+    if (!alertsId || openedAlerts.current === alertsId) return;
+    const found = citizens.find((c) => c.id === alertsId);
+    if (!found) return;
+    openedAlerts.current = alertsId;
+    setSelectedCitizen(found);
+    setEvaluations([]);
+    setRecommendation(null);
+    setRoadmaps([]);
+    setShowAlerts(true);
   }, [citizens]);
 
   const fetchCitizens = async () => {
@@ -55,6 +171,17 @@ export default function Home() {
     } catch (e) {
       console.error(e);
       setRegistryError('The beneficiary list could not be loaded. Check the connection and sign in again.');
+    }
+  };
+
+  const fetchApplications = async () => {
+    try {
+      const res = await apiClient.get('/applications/');
+      setApplications(Array.isArray(res.data) ? res.data : []);
+      setApplicationsError('');
+    } catch (e) {
+      console.error(e);
+      setApplicationsError('Renewal alerts could not be loaded.');
     }
   };
 
@@ -297,6 +424,77 @@ export default function Home() {
   const totalCitizens = citizens.length;
   const bplCitizens = citizens.filter(c => c.is_bpl).length;
   const eligibleCount = evaluations.filter(e => e.status === 'ELIGIBLE' || e.status === 'CONDITIONALLY_ELIGIBLE').length;
+  const renewalRowsFor = (citizenId: string) => {
+    const byScheme = new Map<string, any>();
+    applications.forEach((app) => {
+      if (app.citizen_id !== citizenId || !app.scheme_id) return;
+      const current = byScheme.get(app.scheme_id);
+      if (!current || (!current.renewal_due_at && app.renewal_due_at)) {
+        byScheme.set(app.scheme_id, app);
+      }
+    });
+    return RENEWAL_SCHEMES.map((scheme) => ({
+      ...scheme,
+      chip: renewalChip(byScheme.get(scheme.scheme_id)),
+    }));
+  };
+
+  const handleShowAlerts = (citizen: { id: string }) => {
+    if (selectedCitizen?.id === citizen.id && evaluations.length > 0) {
+      document.getElementById('renewal-alerts')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    const found = citizens.find((c) => c.id === citizen.id) || citizen;
+    setSelectedCitizen(found);
+    setEvaluations([]);
+    setRecommendation(null);
+    setRoadmaps([]);
+    setEvalError('');
+    setShowAlerts(true);
+  };
+
+  const alertRows = selectedCitizen ? renewalRowsFor(selectedCitizen.id) : [];
+  const renewalPanel = selectedCitizen ? (
+    <div id="renewal-alerts" className="card result-renew">
+      <h3 className="result-heading" style={{ marginTop: 0 }}>
+        <AlertTriangle size={18} color="#fbbf24" />
+        <span>Scheme renewal alerts</span>
+      </h3>
+      <p className="result-note">For {selectedCitizen.name}. Saved reminders, without running eligibility again.</p>
+      {applicationsError && (
+        <p style={{ color: '#fda4af', fontSize: '0.88rem', margin: '0 0 8px' }}>{applicationsError}</p>
+      )}
+      {alertRows.map((row) => (
+        <div key={row.scheme_id} className={`result-renew-row is-${row.chip.tone}`}>
+          <div>
+            <div className="result-name">{row.scheme_name}</div>
+            <div className="result-id">{row.scheme_id}</div>
+          </div>
+          <span className={`alert-chip ${row.chip.tone}`}>{row.chip.text}</span>
+        </div>
+      ))}
+    </div>
+  ) : null;
+
+  const handleDeleteCitizen = async (citizen: { id: string; name?: string }) => {
+    const name = citizen.name || 'this citizen';
+    if (!window.confirm(`Delete registered citizen ${name}? Their filings and renewal alerts are removed.`)) return;
+    try {
+      await apiClient.delete(`/citizens/${citizen.id}`);
+      if (selectedCitizen?.id === citizen.id) {
+        setSelectedCitizen(null);
+        setEvaluations([]);
+        setRecommendation(null);
+        setRoadmaps([]);
+      }
+      setShowAlerts(false);
+      setRegistryError('');
+      await Promise.all([fetchCitizens(), fetchApplications()]);
+    } catch (e) {
+      console.error(e);
+      setRegistryError('This registered citizen could not be deleted. Sign in again and retry.');
+    }
+  };
 
   return (
     <div className="animate-fade-in">
@@ -313,7 +511,7 @@ export default function Home() {
             Senior Citizen Welfare & Scheme Engine
           </h1>
           <p style={{ color: '#cbd5e1', fontSize: '1.05rem', lineHeight: 1.6 }}>
-            Empowering Anganwadi & CSC field workers with instant optical document verification, deterministic scheme evaluation, counterfactual explainability, and multi-lingual voice briefings.
+            Empowering Anganwadi & CSC field workers with instant optical document verification, scheme evaluation, counterfactual explainability, and multi-lingual voice briefings.
           </p>
         </div>
       </div>
@@ -404,7 +602,10 @@ export default function Home() {
                 <CitizenCard 
                   key={c.id} 
                   citizen={c} 
-                  onEvaluate={handleEvaluate} 
+                  onEvaluate={handleEvaluate}
+                  onAlerts={handleShowAlerts}
+                  onDelete={handleDeleteCitizen}
+                  alertsOpen={showAlerts && selectedCitizen?.id === c.id}
                   isEvaluating={loading && selectedCitizen?.id === c.id} 
                 />
               ))
@@ -490,15 +691,39 @@ export default function Home() {
                 )}
               </div>
 
-              {/* Evaluation Results List */}
-              <h3 style={{ fontSize: '1.25rem', margin: '1.5rem 0 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <FileText size={19} color="#2dd4bf" />
-                <span>Deterministic Scheme Evaluation Matrix</span>
+              <h3 className="result-heading">
+                <FileText size={18} color="#2dd4bf" />
+                <span>Scheme Evaluation Matrix and Eligibility Comparison Dashboard</span>
               </h3>
 
-              {evaluations.map((ev, idx) => (
-                <EligibilityResult key={idx} evaluation={ev} citizenId={selectedCitizen.id} />
-              ))}
+              <div className="card result-compare">
+                {rankedEvaluations(evaluations).map((ev) => (
+                  <article key={ev.scheme_id || ev.scheme_name} className="result-row">
+                    <div className="result-row-top">
+                      <div>
+                        <div className="result-name">{ev.scheme_name}</div>
+                        <div className="result-id">{ev.scheme_id}</div>
+                      </div>
+                      <div className="result-figures">
+                        <span className={statusBadgeClass(ev.status)}>{statusLabel(ev.status)}</span>
+                        <span className="result-score" style={{ color: statusColor(ev.status) }}>
+                          {typeof ev.score === 'number' ? `${ev.score}%` : '—'}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="result-support"><strong>Benefit</strong>{benefitText(ev)}</p>
+                    <p className="result-support"><strong>Missing</strong>{missingText(ev)}</p>
+                  </article>
+                ))}
+              </div>
+
+              <div className="result-details">
+                {evaluations.map((ev, idx) => (
+                  <EligibilityResult key={ev.scheme_id || idx} evaluation={ev} citizenId={selectedCitizen.id} />
+                ))}
+              </div>
+
+              {renewalPanel}
 
               {/* Scheme Roadmaps */}
               {roadmaps.length > 0 && (
@@ -512,6 +737,19 @@ export default function Home() {
                   ))}
                 </div>
               )}
+            </div>
+          ) : selectedCitizen && showAlerts ? (
+            <div className="animate-fade-in">
+              <div className="card" style={{ marginBottom: '16px' }}>
+                <span style={{ fontSize: '0.8rem', color: '#2dd4bf', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700 }}>
+                  Renewal alerts
+                </span>
+                <h2 style={{ fontSize: '1.5rem', marginTop: '0.15rem' }}>{selectedCitizen.name}</h2>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.86rem' }}>
+                  {selectedCitizen.age} Yrs • {selectedCitizen.district}, {selectedCitizen.state}
+                </p>
+              </div>
+              {renewalPanel}
             </div>
           ) : evalError ? (
             <div className="card" style={{ textAlign: 'center', padding: '3rem 2rem' }}>

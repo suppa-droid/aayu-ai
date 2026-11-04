@@ -68,7 +68,7 @@ export default function Navigation() {
           className={`nav-link ${pathname === '/applications' ? 'active' : ''}`}
         >
           <Columns size={17} />
-          <span>Applications</span>
+          <span>Tracking Pipeline</span>
         </Link>
         <Link 
           href="/escalations" 

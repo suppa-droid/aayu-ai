@@ -4,6 +4,7 @@ sponsoring_agency: "National Health Authority (NHA)"
 category: "Universal Health Insurance"
 min_age: 70
 requires_bpl: false
+renewal_period_days: 365
 required_documents:
   - "Aadhaar Card with e-KYC"
 rules:

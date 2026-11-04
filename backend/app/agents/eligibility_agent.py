@@ -28,7 +28,8 @@ class EligibilityAgent:
             matched_criteria=result["matched_criteria"],
             unmatched_criteria=result["unmatched_criteria"],
             counterfactual=counterfactual,
-            rag_citations=citations
+            rag_citations=citations,
+            benefit_summary=result.get("benefit_summary") or "",
         )
 
 eligibility_agent = EligibilityAgent()

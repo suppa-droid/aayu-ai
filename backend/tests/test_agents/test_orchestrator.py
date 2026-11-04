@@ -19,3 +19,7 @@ def test_full_pipeline_execution():
     assert result["recommendation_package"]["voice_briefing_script"]
     assert len(result["roadmaps"]) == result["eligible_count"]
     assert result["roadmaps"][0]["steps"]
+    assert all(
+        trigger.get("type") != "ANNUAL_RENEWAL_DUE"
+        for trigger in result["proactive_triggers"]
+    )

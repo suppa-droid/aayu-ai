@@ -17,6 +17,19 @@ export default function CitizensListPage() {
     fetchCitizens();
   }, []);
 
+  const deleteCitizen = async (citizen: { id: string; name?: string }) => {
+    const name = citizen.name || 'this citizen';
+    if (!window.confirm(`Delete registered citizen ${name}? Their filings and renewal alerts are removed.`)) return;
+    try {
+      await apiClient.delete(`/citizens/${citizen.id}`);
+      setLoadError('');
+      await fetchCitizens();
+    } catch (e) {
+      console.error(e);
+      setLoadError('This registered citizen could not be deleted. Sign in again and retry.');
+    }
+  };
+
   const fetchCitizens = async () => {
     try {
       const res = await apiClient.get('/citizens/', { params: { limit: 1000 } });
@@ -103,7 +116,9 @@ export default function CitizensListPage() {
           <CitizenCard 
             key={cit.id} 
             citizen={cit} 
-            onEvaluate={() => router.push(`/?citizen=${cit.id}`)} 
+            onEvaluate={() => router.push(`/?citizen=${cit.id}`)}
+            onAlerts={() => router.push(`/?alerts=${cit.id}`)}
+            onDelete={deleteCitizen}
           />
         ))}
       </div>

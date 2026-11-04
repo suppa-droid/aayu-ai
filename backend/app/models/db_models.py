@@ -15,6 +15,7 @@ class DBUser(Base):
     role = Column(String(50), nullable=False)  # FIELD_WORKER, DISTRICT_ADMIN, SYSTEM_ADMIN
     full_name = Column(String(150), nullable=False)
     district = Column(String(100), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
 
 class DBCitizen(Base):
     __tablename__ = "citizens"
@@ -58,6 +59,7 @@ class DBApplication(Base):
     field_worker_id = Column(String(50), default="FW-101")
     status = Column(SQLEnum(ApplicationStatus), default=ApplicationStatus.SUBMITTED)
     remarks = Column(Text, nullable=True)
+    renewal_due_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

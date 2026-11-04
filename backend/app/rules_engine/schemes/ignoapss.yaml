@@ -5,6 +5,7 @@ category: "Social Security & Pension"
 min_age: 60
 max_income: 2500
 requires_bpl: true
+renewal_period_days: 365
 required_documents:
   - "Aadhaar Card"
   - "BPL Ration Card"

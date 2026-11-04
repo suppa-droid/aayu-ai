@@ -3,6 +3,41 @@ import { useEffect, useState } from 'react';
 import { apiClient } from '../../lib/api-client';
 import { FileText, CheckCircle2, Clock, AlertCircle, ShieldAlert, ArrowUpRight } from 'lucide-react';
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function parseDueDate(value: unknown): Date | null {
+  if (value == null || value === '') return null;
+  if (typeof value === 'string') {
+    const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value.trim());
+    if (match) {
+      const year = Number(match[1]);
+      const month = Number(match[2]);
+      const day = Number(match[3]);
+      const date = new Date(year, month - 1, day);
+      if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+      return date;
+    }
+  }
+  const parsed = new Date(value as string);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+}
+
+function calendarDaysFromToday(due: Date): number {
+  const today = new Date();
+  const startToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return Math.round((due.getTime() - startToday.getTime()) / 86400000);
+}
+
+function renewalWindowNote(app: { status?: string; renewal_due_at?: unknown }): string {
+  const due = parseDueDate(app.renewal_due_at);
+  if (!due) return 'Renewal starts after approval';
+  const days = calendarDaysFromToday(due);
+  if (days < 0) return 'Renewal date has passed';
+  if (days <= 30) return `Renewal due ${due.getDate()} ${MONTHS[due.getMonth()]} ${due.getFullYear()} (${days} days left)`;
+  return `Renews ${due.getDate()} ${MONTHS[due.getMonth()]} ${due.getFullYear()}`;
+}
+
 export default function ApplicationsPage() {
   const [apps, setApps] = useState<any[]>([]);
   const [loadError, setLoadError] = useState('');
@@ -83,7 +118,9 @@ export default function ApplicationsPage() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {apps.map((app) => (
+          {apps.map((app) => {
+            const renewalNote = renewalWindowNote(app);
+            return (
             <div key={app.id} className="card" style={{ marginBottom: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.8rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -113,10 +150,20 @@ export default function ApplicationsPage() {
                   </div>
                 </div>
 
-                <div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem', alignItems: 'center' }}>
                   {getStatusBadge(app.status)}
+                  {(renewalNote.startsWith('Renewal due') || renewalNote.startsWith('Renewal date')) && app.status !== 'RENEWAL_DUE'
+                    ? getStatusBadge('RENEWAL_DUE')
+                    : null}
                 </div>
               </div>
+
+              {renewalNote && (
+                <div className="renewal-strip">
+                  <span className="alert-chip soon">{app.scheme_id}</span>
+                  <strong>{renewalNote}</strong>
+                </div>
+              )}
 
               {app.remarks && (
                 <div 
@@ -134,7 +181,8 @@ export default function ApplicationsPage() {
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

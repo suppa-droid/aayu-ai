@@ -56,6 +56,7 @@ class EligibilityEvaluationResponse(BaseModel):
     unmatched_criteria: List[str]
     counterfactual: CounterfactualExplanation
     rag_citations: List[str]
+    benefit_summary: str = ""
 
 class ApplicationCreate(BaseModel):
     citizen_id: str
@@ -67,8 +68,10 @@ class ApplicationResponse(BaseModel):
     citizen_id: str
     citizen_name: Optional[str] = None
     scheme_id: str
+    scheme_name: Optional[str] = None
     status: ApplicationStatus
     remarks: Optional[str] = None
+    renewal_due_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)
